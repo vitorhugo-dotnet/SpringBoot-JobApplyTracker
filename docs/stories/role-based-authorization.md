@@ -4,12 +4,12 @@
 
 - [x] Add Role entity/model and `User` ↔ `Role` many-to-many mapping
 - [x] Add `RoleRepository`
-- [x] Add Flyway migration for `roles`, `user_roles`, role seed, and sample admin/user assignments
+- [x] Add Flyway migration for `roles`, `user_roles`, role seed, and `USER` backfill for existing users
 - [x] Include roles in JWT generation/parsing and authentication authorities
 - [x] Enforce baseline authorization (`ROLE_USER`) for protected API endpoints
 - [x] Add unit tests for JWT role claims and `UserDetailsService` role mapping
 - [x] Add integration test proving authenticated token without `ROLE_USER` is forbidden
-- [x] Update README with role-based auth and seeded account details
+- [x] Update README with role-based auth and `ROLE_USER` protected endpoint annotations
 
 ## File List
 

@@ -77,13 +77,20 @@ A production-ready Spring Boot REST API for tracking job applications, built wit
 ## Authorization Model
 
 - JWT access tokens now include a `roles` claim (e.g., `ROLE_USER`, `ROLE_ADMIN`).
-- Protected API routes require `ROLE_USER` (auth routes remain public).
+- Existing users are backfilled with `ROLE_USER` during migration.
 - A default `ROLE_USER` is assigned on registration.
 
-Flyway seeds the roles catalog (`USER`, `BETA`, `ADMIN`) and sample accounts:
+Flyway seeds the roles catalog (`USER`, `BETA`, `ADMIN`) and then assigns `ROLE_USER` to all existing users.
 
-- `admin@jobtracker.local` / `Admin@1234` (`ROLE_ADMIN` + `ROLE_USER`)
-- `user@jobtracker.local` / `User@1234` (`ROLE_USER`)
+### Endpoints currently requiring `ROLE_USER`
+
+- `GET /api/v1/auth/me`
+- `PUT /api/v1/auth/me`
+- `PUT /api/v1/auth/me/password`
+- `POST|GET|PUT|PATCH|DELETE /api/v1/applications/**`
+- `GET|POST /api/v1/gamification/**`
+- `GET /api/v1/dashboard/summary`
+- `POST /api/v1/account/test-email`
 
 ### Gamification
 

@@ -49,7 +49,11 @@ public class SecurityConfig {
                         // Actuator is served on a dedicated management port (8081) that is never
                         // exposed to the host; security is enforced via Docker network isolation.
                         .requestMatchers("/actuator/**").permitAll()
-                        .anyRequest().hasRole("USER"))
+                        // ROLE_USER endpoints: all remaining application APIs under /api/v1/**
+                        // (e.g. /api/v1/auth/me, /api/v1/applications/**, /api/v1/gamification/**,
+                        // /api/v1/dashboard/**, /api/v1/account/**).
+                        .requestMatchers("/api/v1/**").hasRole("USER")
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(requestLoggingFilter, JwtAuthenticationFilter.class);
 
