@@ -246,22 +246,16 @@
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.graalvm.buildtools</groupId>
-                        <artifactId>native-maven-plugin</artifactId>
-                        <configuration>
-                            <imageName>app-native</imageName>
-                        </configuration>
-                        <version>${native.maven.plugin.version}</version>
-                        <extensions>true</extensions>
-                        <executions>
-                            <execution>
-                                <id>build-native</id>
-                                <goals>
-                                    <goal>compile-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
+                      <groupId>org.graalvm.buildtools</groupId>
+                      <artifactId>native-maven-plugin</artifactId>
+                      <configuration>
+                          <imageName>app-native</imageName>
+                          <buildArgs>
+                              <buildArg>-J-Xmx6g</buildArg>
+                              <buildArg>-Ob</buildArg> 
+                          </buildArgs>
+                      </configuration>
+                  </plugin>
                 </plugins>
             </build>
         </profile>
