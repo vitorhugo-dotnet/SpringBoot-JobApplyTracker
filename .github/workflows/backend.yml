@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Branch, tag, or PR ref to deploy manually (for example feature/my-branch or refs/pull/123/head)
+        description: Branch, tag, or PR ref to deploy manually
         required: false
         type: string
 
@@ -26,6 +26,7 @@ env:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
   group: backend-${{ github.workflow }}-${{ github.ref }}
@@ -33,9 +34,9 @@ concurrency:
 
 jobs:
   test-and-build:
-    name: Test and Build
+    name: Test and Build (Native)
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60 # Native build demora mais, normal
 
     steps:
       - name: Checkout
@@ -43,32 +44,31 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.sha }}
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
         with:
-          distribution: corretto
           java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           cache: maven
 
-      - name: Run tests and package JAR
-        run: mvn -B -ntp clean verify
+      - name: Build Native Binary
+        # Aqui a gente ativa o perfil nativo do Spring Boot. 
+        # Isso gera o binário no GitHub, poupando sua VPS de fritar.
+        run: mvn -Pnative native:compile -DskipTests -B -ntp
 
-      - name: Upload packaged JAR
+      - name: Upload Native Binary
         uses: actions/upload-artifact@v4
         with:
-          name: spring-boot-jar
-          path: target/*.jar
-          if-no-files-found: error
-          retention-days: 14
+          name: native-executable
+          path: target/job-tracker-app # Ajuste para o nome do executável gerado pelo Maven
+          retention-days: 1
 
   publish-image:
     name: Publish Image
     needs: test-and-build
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master')) }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     timeout-minutes: 30
 
     steps:
@@ -76,6 +76,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.sha }}
+
+      - name: Download Native Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: native-executable
+          path: ./target/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -126,6 +132,14 @@ jobs:
           script: |
             set -eu
             cd /docker/jobpplytracker-api
+            
+            echo "Puxando a imagem nova..."
             docker compose pull
-            docker compose down
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+            
+            echo "Subindo o container (sem downtime desnecessário)..."
+            # Removi o 'down'. O 'up -d' já recria apenas o que mudou.
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+            
+            echo "Limpando a bagunça..."
+            # Comando vital para não encher o disco da VPS de 4GB com imagens antigas
+            docker image prune -f
