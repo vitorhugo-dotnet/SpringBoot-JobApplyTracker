@@ -8,7 +8,7 @@ A production-ready Spring Boot REST API for tracking job applications, built wit
 
 - **Java 21**
 - **Spring Boot 3.2** (Web, Data JPA, Security, Validation)
-- **Spring Security** with stateless JWT authentication
+- **Spring Security** with stateless JWT authentication + role-based authorization (`USER`, `BETA`, `ADMIN`)
 - **JWT + Refresh Tokens** (access: 15 min, refresh: 7 days with rotation)
 - **Resilience4j Rate Limiting** on auth endpoints
 - **MariaDB** (production) / **Testcontainers** (tests)
@@ -73,6 +73,24 @@ A production-ready Spring Boot REST API for tracking job applications, built wit
 | DELETE | `/api/v1/applications/{id}` | Delete |
 | GET | `/api/v1/applications/upcoming` | Upcoming next steps |
 | GET | `/api/v1/applications/overdue` | Overdue next steps |
+
+## Authorization Model
+
+- JWT access tokens now include a `roles` claim (e.g., `ROLE_USER`, `ROLE_ADMIN`).
+- Existing users are backfilled with `ROLE_USER` during migration.
+- A default `ROLE_USER` is assigned on registration.
+
+Flyway seeds the roles catalog (`USER`, `BETA`, `ADMIN`) and then assigns `ROLE_USER` to all existing users.
+
+### Endpoints currently requiring `ROLE_USER`
+
+- `GET /api/v1/auth/me`
+- `PUT /api/v1/auth/me`
+- `PUT /api/v1/auth/me/password`
+- `POST|GET|PUT|PATCH|DELETE /api/v1/applications/**`
+- `GET|POST /api/v1/gamification/**`
+- `GET /api/v1/dashboard/summary`
+- `POST /api/v1/account/test-email`
 
 ### Gamification
 
