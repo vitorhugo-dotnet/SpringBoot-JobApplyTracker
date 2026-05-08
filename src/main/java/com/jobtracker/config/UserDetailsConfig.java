@@ -13,11 +13,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.stream.Collectors;
 
 @Configuration
-public class ApplicationConfig {
+public class UserDetailsConfig {
 
     private final UserRepository userRepository;
 
-    public ApplicationConfig(UserRepository userRepository) {
+    public UserDetailsConfig(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
