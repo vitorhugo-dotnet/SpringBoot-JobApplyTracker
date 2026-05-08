@@ -4,6 +4,8 @@ services:
     container_name: job-tracker-app
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: dev
       DB_URL: ${DB_URL}
