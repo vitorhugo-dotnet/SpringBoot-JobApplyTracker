@@ -1,24 +1,47 @@
-FROM debian:bookworm-slim
+# ============================================================
+# Stage 1: Build
+# ============================================================
+FROM maven:3.9-eclipse-temurin-21 AS build
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /workspace
 
-RUN groupadd -r appgroup && useradd -r -g appgroup -d /app appuser
+# Copy POM first to cache dependency layer
+COPY pom.xml .
+
+# Download dependencies (cached unless pom.xml changes)
+RUN mvn dependency:go-offline -B --no-transfer-progress
+
+# Copy source code and build the fat JAR, skipping tests
+COPY src src
+RUN mvn package -DskipTests -B --no-transfer-progress
+
+# ============================================================
+# Stage 2: Runtime
+# ============================================================
+FROM eclipse-temurin:21-jre-alpine AS runtime
+
+# Create a non-root user for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
-COPY --chown=appuser:appgroup target/app-native .
-
-RUN chmod +x app-native
+# Copy the built JAR from the build stage
+COPY --from=build --chown=appuser:appgroup /workspace/target/*.jar app.jar
 
 USER appuser
 
+# Expose application port and management port
 EXPOSE 8080
 EXPOSE 8081
 
+# Health check – relies on Spring Actuator management port
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8081/actuator/health || exit 1
+  CMD wget -qO- http://localhost:8081/actuator/health || exit 1
 
-ENTRYPOINT ["./app-native"]
+# JVM tuning flags for containers (respects cgroup memory limits)
+ENV JAVA_OPTS="-XX:+UseContainerSupport \
+               -XX:MaxRAMPercentage=75.0 \
+               -XX:+ExitOnOutOfMemoryError \
+               -Djava.security.egd=file:/dev/./urandom"
+
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
