@@ -14,11 +14,13 @@ import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.GoogleDriveBaseResumeRepository;
 import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.repository.GoogleDriveOAuthStateRepository;
+import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.repository.PasswordResetTokenRepository;
 import com.jobtracker.repository.RefreshTokenRepository;
 import com.jobtracker.repository.RoleRepository;
 import com.jobtracker.repository.UserAchievementRepository;
 import com.jobtracker.repository.UserGamificationRepository;
+import com.jobtracker.repository.UserInterviewMetricsRepository;
 import com.jobtracker.repository.UserRepository;
 import com.jobtracker.service.GoogleDriveApiClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,6 +60,8 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
     @Autowired private ApplicationRepository applicationRepository;
     @Autowired private UserGamificationRepository userGamificationRepository;
     @Autowired private UserAchievementRepository userAchievementRepository;
+    @Autowired private InterviewEventRepository interviewEventRepository;
+    @Autowired private UserInterviewMetricsRepository userInterviewMetricsRepository;
     @Autowired private GoogleDriveConnectionRepository googleDriveConnectionRepository;
     @Autowired private GoogleDriveBaseResumeRepository googleDriveBaseResumeRepository;
     @Autowired private GoogleDriveOAuthStateRepository googleDriveOAuthStateRepository;
@@ -74,9 +78,11 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
         googleDriveConnectionRepository.deleteAll();
         userAchievementRepository.deleteAll();
         userGamificationRepository.deleteAll();
+        interviewEventRepository.deleteAll();
         applicationRepository.deleteAll();
         passwordResetTokenRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        userInterviewMetricsRepository.deleteAll();
         userRepository.deleteAll();
 
         RegisterRequest reg = new RegisterRequest("Drive User", "driveuser@example.com", "pass1234", "pass1234");
