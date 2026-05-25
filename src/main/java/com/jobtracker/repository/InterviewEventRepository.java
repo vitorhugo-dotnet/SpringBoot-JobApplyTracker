@@ -10,4 +10,6 @@ import java.util.UUID;
 public interface InterviewEventRepository extends JpaRepository<InterviewEvent, UUID> {
 
     long countByUser_Id(UUID userId);
+
+    void deleteByApplication_Id(UUID applicationId);
 }

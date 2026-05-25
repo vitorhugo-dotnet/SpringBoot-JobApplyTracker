@@ -7,10 +7,12 @@ import com.jobtracker.dto.auth.LoginRequest;
 import com.jobtracker.dto.auth.RegisterRequest;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.GoogleDriveConnectionRepository;
+import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.repository.PasswordResetTokenRepository;
 import com.jobtracker.repository.RefreshTokenRepository;
 import com.jobtracker.repository.UserAchievementRepository;
 import com.jobtracker.repository.UserGamificationRepository;
+import com.jobtracker.repository.UserInterviewMetricsRepository;
 import com.jobtracker.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,17 +42,21 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Autowired private RefreshTokenRepository refreshTokenRepository;
     @Autowired private PasswordResetTokenRepository passwordResetTokenRepository;
     @Autowired private ApplicationRepository applicationRepository;
+    @Autowired private InterviewEventRepository interviewEventRepository;
     @Autowired private UserGamificationRepository userGamificationRepository;
     @Autowired private UserAchievementRepository userAchievementRepository;
+    @Autowired private UserInterviewMetricsRepository userInterviewMetricsRepository;
 
     @BeforeEach
     void cleanDb() {
         googleDriveConnectionRepository.deleteAll();
         userAchievementRepository.deleteAll();
         userGamificationRepository.deleteAll();
+        interviewEventRepository.deleteAll();
         applicationRepository.deleteAll();
         passwordResetTokenRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        userInterviewMetricsRepository.deleteAll();
         userRepository.deleteAll();
     }
 

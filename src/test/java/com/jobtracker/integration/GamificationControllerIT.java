@@ -6,10 +6,12 @@ import com.jobtracker.dto.auth.RegisterRequest;
 import com.jobtracker.dto.gamification.GamificationEventRequest;
 import com.jobtracker.entity.enums.GamificationEventType;
 import com.jobtracker.repository.ApplicationRepository;
+import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.repository.PasswordResetTokenRepository;
 import com.jobtracker.repository.RefreshTokenRepository;
 import com.jobtracker.repository.UserAchievementRepository;
 import com.jobtracker.repository.UserGamificationRepository;
+import com.jobtracker.repository.UserInterviewMetricsRepository;
 import com.jobtracker.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,18 +46,26 @@ class GamificationControllerIT extends AbstractIntegrationTest {
     private ApplicationRepository applicationRepository;
 
     @Autowired
+    private InterviewEventRepository interviewEventRepository;
+
+    @Autowired
     private UserGamificationRepository userGamificationRepository;
 
     @Autowired
     private UserAchievementRepository userAchievementRepository;
 
+    @Autowired
+    private UserInterviewMetricsRepository userInterviewMetricsRepository;
+
     @BeforeEach
     void cleanDb() {
         userAchievementRepository.deleteAll();
         userGamificationRepository.deleteAll();
+        interviewEventRepository.deleteAll();
         applicationRepository.deleteAll();
         passwordResetTokenRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        userInterviewMetricsRepository.deleteAll();
         userRepository.deleteAll();
     }
 

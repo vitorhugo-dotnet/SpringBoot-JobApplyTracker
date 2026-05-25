@@ -8,6 +8,7 @@ import com.jobtracker.exception.BadRequestException;
 import com.jobtracker.exception.ResourceNotFoundException;
 import com.jobtracker.mapper.ApplicationMapper;
 import com.jobtracker.repository.ApplicationRepository;
+import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.service.ApplicationService;
 import com.jobtracker.service.GamificationService;
 import com.jobtracker.service.InterviewMetricsService;
@@ -45,6 +46,7 @@ class ApplicationServiceTest {
     private static final UUID OTHER_UUID = UUID.fromString("00000000-0000-0000-0000-000000000099");
 
     @Mock private ApplicationRepository applicationRepository;
+    @Mock private InterviewEventRepository interviewEventRepository;
     @Mock private ApplicationMapper applicationMapper;
     @Mock private GamificationService gamificationService;
     @Mock private InterviewMetricsService interviewMetricsService;
@@ -234,6 +236,28 @@ class ApplicationServiceTest {
         when(applicationRepository.findByIdAndUserId(OTHER_UUID, USER_UUID)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> applicationService.archive(OTHER_UUID))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void delete_shouldRemoveInterviewEventsBeforeDeletingApplication() {
+        when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
+        when(applicationRepository.findByIdAndUserId(APP_UUID, USER_UUID)).thenReturn(Optional.of(app));
+
+        applicationService.delete(APP_UUID);
+
+        var inOrder = inOrder(interviewEventRepository, applicationRepository);
+        inOrder.verify(interviewEventRepository).deleteByApplication_Id(APP_UUID);
+        inOrder.verify(applicationRepository).delete(app);
+    }
+
+    @Test
+    void delete_shouldThrow_whenApplicationNotFound() {
+        when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
+        when(applicationRepository.findByIdAndUserId(OTHER_UUID, USER_UUID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> applicationService.delete(OTHER_UUID))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verifyNoInteractions(interviewEventRepository);
     }
 
     @SuppressWarnings("unchecked")

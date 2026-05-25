@@ -7,6 +7,7 @@ import com.jobtracker.exception.BadRequestException;
 import com.jobtracker.exception.ResourceNotFoundException;
 import com.jobtracker.mapper.ApplicationMapper;
 import com.jobtracker.repository.ApplicationRepository;
+import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.util.SecurityUtils;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
@@ -38,6 +39,7 @@ public class ApplicationService {
     );
 
     private final ApplicationRepository applicationRepository;
+    private final InterviewEventRepository interviewEventRepository;
     private final ApplicationMapper applicationMapper;
     private final GamificationService gamificationService;
     private final InterviewMetricsService interviewMetricsService;
@@ -45,12 +47,14 @@ public class ApplicationService {
     private final Tracer tracer;
 
     public ApplicationService(ApplicationRepository applicationRepository,
+                              InterviewEventRepository interviewEventRepository,
                               ApplicationMapper applicationMapper,
                               GamificationService gamificationService,
                               InterviewMetricsService interviewMetricsService,
                               SecurityUtils securityUtils,
                               Tracer tracer) {
         this.applicationRepository = applicationRepository;
+        this.interviewEventRepository = interviewEventRepository;
         this.applicationMapper = applicationMapper;
         this.gamificationService = gamificationService;
         this.interviewMetricsService = interviewMetricsService;
@@ -141,6 +145,7 @@ public class ApplicationService {
         UUID userId = securityUtils.getCurrentUserId();
         JobApplication app = applicationRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
+        interviewEventRepository.deleteByApplication_Id(app.getId());
         applicationRepository.delete(app);
     }
 
