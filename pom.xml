@@ -166,6 +166,13 @@
             <version>v3-rev20240521-2.0.0</version>
         </dependency>
 
+        <!-- Google Docs SDK -->
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-docs</artifactId>
+            <version>v1-rev20240726-2.0.0</version>
+        </dependency>
+
         <!-- Google Auth Library (Credentials adapter for the Drive SDK) -->
         <dependency>
             <groupId>com.google.auth</groupId>

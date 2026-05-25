@@ -414,5 +414,19 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
         public DriveFileMetadata copyGoogleDoc(String accessToken, String sourceFileId, String targetFolderId, String newName) {
             return new DriveFileMetadata("copied-file", newName, GOOGLE_DOC_MIME_TYPE, null);
         }
+
+        @Override
+        public String readGoogleDocText(String accessToken, String documentId) {
+            return "{{SUMMARY}}\n{{SKILLS}}";
+        }
+
+        @Override
+        public void replaceGoogleDocPlaceholders(String accessToken, String documentId, Map<String, String> values) {
+        }
+
+        @Override
+        public DriveFileMetadata exportGoogleDocAsPdf(String accessToken, String documentId, String targetFolderId, String pdfName) {
+            return new DriveFileMetadata("pdf-file", pdfName, "application/pdf", null);
+        }
     }
 }

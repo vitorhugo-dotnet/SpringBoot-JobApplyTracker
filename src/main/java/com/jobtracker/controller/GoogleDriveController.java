@@ -4,6 +4,7 @@ import com.jobtracker.dto.auth.MessageResponse;
 import com.jobtracker.dto.gdrive.*;
 import com.jobtracker.service.GoogleDriveOAuthService;
 import com.jobtracker.service.GoogleDriveService;
+import com.jobtracker.service.ResumeGenerationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -26,10 +27,14 @@ public class GoogleDriveController {
 
     private final GoogleDriveOAuthService googleDriveOAuthService;
     private final GoogleDriveService googleDriveService;
+    private final ResumeGenerationService resumeGenerationService;
 
-    public GoogleDriveController(GoogleDriveOAuthService googleDriveOAuthService, GoogleDriveService googleDriveService) {
+    public GoogleDriveController(GoogleDriveOAuthService googleDriveOAuthService,
+                                 GoogleDriveService googleDriveService,
+                                 ResumeGenerationService resumeGenerationService) {
         this.googleDriveOAuthService = googleDriveOAuthService;
         this.googleDriveService = googleDriveService;
+        this.resumeGenerationService = resumeGenerationService;
     }
 
     @Operation(
@@ -102,5 +107,23 @@ public class GoogleDriveController {
             @Valid @RequestBody GoogleDriveResumeCopyRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(googleDriveService.copyBaseResumeToApplication(applicationId, request));
+    }
+
+    @Operation(summary = "Detect placeholders in a configured base resume")
+    @PreAuthorize("hasRole('BETA')")
+    @PostMapping("/resume-placeholders")
+    public ResponseEntity<ResumePlaceholderResponse> detectResumePlaceholders(
+            @Valid @RequestBody ResumePlaceholderRequest request) {
+        return ResponseEntity.ok(resumeGenerationService.detectPlaceholders(request));
+    }
+
+    @Operation(summary = "Generate an application resume by replacing template placeholders")
+    @PreAuthorize("hasRole('BETA')")
+    @PostMapping("/applications/{applicationId}/generated-resumes")
+    public ResponseEntity<ResumePlaceholderResponse> generateResume(
+            @PathVariable UUID applicationId,
+            @Valid @RequestBody ResumePlaceholderRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(resumeGenerationService.generateResume(applicationId, request));
     }
 }

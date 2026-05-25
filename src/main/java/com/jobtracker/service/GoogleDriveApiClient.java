@@ -1,6 +1,7 @@
 package com.jobtracker.service;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 
 public interface GoogleDriveApiClient {
@@ -23,6 +24,12 @@ public interface GoogleDriveApiClient {
     DriveFileMetadata createFolder(String accessToken, String parentFolderId, String folderName);
 
     DriveFileMetadata copyGoogleDoc(String accessToken, String sourceFileId, String targetFolderId, String newName);
+
+    String readGoogleDocText(String accessToken, String documentId);
+
+    void replaceGoogleDocPlaceholders(String accessToken, String documentId, Map<String, String> values);
+
+    DriveFileMetadata exportGoogleDocAsPdf(String accessToken, String documentId, String targetFolderId, String pdfName);
 
     record OAuthTokens(String accessToken, String refreshToken, LocalDateTime accessTokenExpiresAt, String scope) {}
 

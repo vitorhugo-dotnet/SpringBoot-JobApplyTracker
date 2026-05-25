@@ -1,6 +1,12 @@
 package com.jobtracker.service;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.ByteArrayContent;
+import com.google.api.services.docs.v1.Docs;
+import com.google.api.services.docs.v1.model.BatchUpdateDocumentRequest;
+import com.google.api.services.docs.v1.model.ReplaceAllTextRequest;
+import com.google.api.services.docs.v1.model.Request;
+import com.google.api.services.docs.v1.model.SubstringMatchCriteria;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.File;
@@ -26,10 +32,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -215,11 +223,77 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
         });
     }
 
+    @Override
+    public String readGoogleDocText(String accessToken, String documentId) {
+        return executeDocsOp(accessToken, "read document", docs -> {
+            com.google.api.services.docs.v1.model.Document document = docs.documents().get(documentId).execute();
+            StringBuilder text = new StringBuilder();
+            if (document.getBody() == null || document.getBody().getContent() == null) {
+                return "";
+            }
+            document.getBody().getContent().forEach(element -> {
+                if (element.getParagraph() == null || element.getParagraph().getElements() == null) {
+                    return;
+                }
+                element.getParagraph().getElements().forEach(paragraphElement -> {
+                    if (paragraphElement.getTextRun() != null && paragraphElement.getTextRun().getContent() != null) {
+                        text.append(paragraphElement.getTextRun().getContent());
+                    }
+                });
+            });
+            return text.toString();
+        });
+    }
+
+    @Override
+    public void replaceGoogleDocPlaceholders(String accessToken, String documentId, Map<String, String> values) {
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+
+        List<Request> requests = values.entrySet().stream()
+                .map(entry -> new Request().setReplaceAllText(new ReplaceAllTextRequest()
+                        .setContainsText(new SubstringMatchCriteria()
+                                .setText("{{" + entry.getKey() + "}}")
+                                .setMatchCase(true))
+                        .setReplaceText(entry.getValue() == null ? "" : entry.getValue())))
+                .toList();
+
+        executeDocsOp(accessToken, "replace placeholders", docs -> {
+            docs.documents().batchUpdate(documentId, new BatchUpdateDocumentRequest().setRequests(requests)).execute();
+            return null;
+        });
+    }
+
+    @Override
+    public DriveFileMetadata exportGoogleDocAsPdf(String accessToken, String documentId, String targetFolderId, String pdfName) {
+        return executeDriveOp(accessToken, "export document as PDF", drive -> {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            drive.files()
+                    .export(documentId, "application/pdf")
+                    .executeMediaAndDownloadTo(outputStream);
+
+            File metadata = new File()
+                    .setName(pdfName)
+                    .setParents(List.of(targetFolderId));
+            ByteArrayContent mediaContent = new ByteArrayContent("application/pdf", outputStream.toByteArray());
+            return toDriveFileMetadata(drive.files().create(metadata, mediaContent)
+                    .setSupportsAllDrives(true)
+                    .setFields("id,name,mimeType,webViewLink")
+                    .execute());
+        });
+    }
+
     // ── internal helpers ─────────────────────────────────────────────────────
 
     @FunctionalInterface
     private interface DriveOperation<T> {
         T execute(Drive drive) throws IOException;
+    }
+
+    @FunctionalInterface
+    private interface DocsOperation<T> {
+        T execute(Docs docs) throws IOException;
     }
 
     private <T> T executeDriveOp(String accessToken, String action, DriveOperation<T> op) {
@@ -231,6 +305,18 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
         } catch (IOException ex) {
             log.warn("event=GOOGLE_DRIVE_IO_ERROR action={} message={}", action, ex.getMessage());
             throw new ServiceUnavailableException("Google Drive is temporarily unavailable (" + action + ")");
+        }
+    }
+
+    private <T> T executeDocsOp(String accessToken, String action, DocsOperation<T> op) {
+        Docs docs = driveClientFactory.createDocs(accessToken, null);
+        try {
+            return op.execute(docs);
+        } catch (GoogleJsonResponseException ex) {
+            throw translateDriveException(action, ex);
+        } catch (IOException ex) {
+            log.warn("event=GOOGLE_DOCS_IO_ERROR action={} message={}", action, ex.getMessage());
+            throw new ServiceUnavailableException("Google Docs is temporarily unavailable (" + action + ")");
         }
     }
 

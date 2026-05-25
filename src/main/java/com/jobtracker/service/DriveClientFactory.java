@@ -5,6 +5,7 @@ import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.docs.v1.Docs;
 import com.google.api.services.drive.Drive;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.AccessToken;
@@ -44,6 +45,18 @@ public class DriveClientFactory {
      * @return a configured {@link Drive} instance
      */
     public Drive create(String accessToken, LocalDateTime accessTokenExpiresAt) {
+        return new Drive.Builder(httpTransport, jsonFactory, createRequestInitializer(accessToken, accessTokenExpiresAt))
+                .setApplicationName(APPLICATION_NAME)
+                .build();
+    }
+
+    public Docs createDocs(String accessToken, LocalDateTime accessTokenExpiresAt) {
+        return new Docs.Builder(httpTransport, jsonFactory, createRequestInitializer(accessToken, accessTokenExpiresAt))
+                .setApplicationName(APPLICATION_NAME)
+                .build();
+    }
+
+    private HttpRequestInitializer createRequestInitializer(String accessToken, LocalDateTime accessTokenExpiresAt) {
         Date expiryDate = accessTokenExpiresAt != null
                 ? Date.from(accessTokenExpiresAt.toInstant(ZoneOffset.UTC))
                 : null;
@@ -55,9 +68,6 @@ public class DriveClientFactory {
             request.setConnectTimeout(CONNECT_TIMEOUT_MS);
             request.setReadTimeout(READ_TIMEOUT_MS);
         };
-
-        return new Drive.Builder(httpTransport, jsonFactory, requestInitializer)
-                .setApplicationName(APPLICATION_NAME)
-                .build();
+        return requestInitializer;
     }
 }
