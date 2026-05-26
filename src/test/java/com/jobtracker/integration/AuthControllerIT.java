@@ -14,6 +14,8 @@ import com.jobtracker.repository.UserAchievementRepository;
 import com.jobtracker.repository.UserGamificationRepository;
 import com.jobtracker.repository.UserInterviewMetricsRepository;
 import com.jobtracker.repository.UserRepository;
+import com.jobtracker.repository.WebAuthnChallengeRepository;
+import com.jobtracker.repository.WebAuthnCredentialRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +48,8 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Autowired private UserGamificationRepository userGamificationRepository;
     @Autowired private UserAchievementRepository userAchievementRepository;
     @Autowired private UserInterviewMetricsRepository userInterviewMetricsRepository;
+    @Autowired private WebAuthnChallengeRepository webAuthnChallengeRepository;
+    @Autowired private WebAuthnCredentialRepository webAuthnCredentialRepository;
 
     @BeforeEach
     void cleanDb() {
@@ -56,6 +60,8 @@ class AuthControllerIT extends AbstractIntegrationTest {
         applicationRepository.deleteAll();
         passwordResetTokenRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        webAuthnChallengeRepository.deleteAll();
+        webAuthnCredentialRepository.deleteAll();
         userInterviewMetricsRepository.deleteAll();
         userRepository.deleteAll();
     }
@@ -373,5 +379,45 @@ class AuthControllerIT extends AbstractIntegrationTest {
                         .content("{\"currentPassword\":\"wrong1234\",\"newPassword\":\"newpass1234\",\"confirmPassword\":\"newpass1234\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Current password is incorrect"));
+    }
+
+    @Test
+    void passkeyLoginOptions_shouldReturnFallbackWhenUserHasNoPasskeys() throws Exception {
+        RegisterRequest reg = new RegisterRequest("No Passkey User", "no-passkey@example.com", "pass1234", "pass1234");
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(reg)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/auth/passkey/login/options")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"no-passkey@example.com\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.passkeyAvailable").value(false))
+                .andExpect(jsonPath("$.challengeId").doesNotExist())
+                .andExpect(jsonPath("$.publicKey").doesNotExist());
+    }
+
+    @Test
+    void passkeyRegisterOptions_shouldReturn403WhenNotAuthenticated() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/passkey/register/options")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void passkeyMe_shouldReturnHasPasskeysFalseByDefault() throws Exception {
+        RegisterRequest reg = new RegisterRequest("Passkey Status User", "passkey-status@example.com", "pass1234", "pass1234");
+        MvcResult regResult = mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(reg)))
+                .andReturn();
+
+        AuthResponse auth = objectMapper.readValue(regResult.getResponse().getContentAsString(), AuthResponse.class);
+
+        mockMvc.perform(get("/api/v1/auth/passkey/me")
+                        .header("Authorization", "Bearer " + auth.accessToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasPasskeys").value(false));
     }
 }

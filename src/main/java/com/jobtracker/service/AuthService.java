@@ -126,6 +126,11 @@ public class AuthService {
     }
 
     @Transactional
+    public AuthResponse issueAuthTokens(User user) {
+        return buildAuthResponse(user);
+    }
+
+    @Transactional
     public RefreshResponse refresh(RefreshTokenRequest request, String refreshToken) {
         Span span = tracer.nextSpan().name("token-refresh").start();
         try (Tracer.SpanInScope ignored = tracer.withSpan(span)) {

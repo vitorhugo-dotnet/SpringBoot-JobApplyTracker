@@ -36,6 +36,13 @@ app:
     client-secret: test-google-client-secret
     redirect-uri: http://localhost:8080/api/v1/google-drive/oauth/callback
     oauth-complete-url: http://localhost:5173/settings/google-drive/callback
+  webauthn:
+    rp-id: localhost
+    rp-name: JobApplyTracker Test
+    origins:
+      - http://localhost:3000
+      - http://localhost:5173
+    challenge-timeout-seconds: 300
 
 cors:
   allowed-origins: http://localhost:3000
