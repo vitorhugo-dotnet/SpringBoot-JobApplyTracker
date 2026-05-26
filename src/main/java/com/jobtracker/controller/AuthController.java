@@ -14,6 +14,7 @@ import com.jobtracker.dto.auth.UpdateProfileRequest;
 import com.jobtracker.dto.auth.UserResponse;
 import com.jobtracker.mapper.AuthMapper;
 import com.jobtracker.service.AuthService;
+import com.jobtracker.service.PasskeyAuthService;
 import com.jobtracker.util.SecurityUtils;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,15 +36,17 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private static final String REFRESH_COOKIE_NAME = "refreshToken";
-    private static final String REFRESH_COOKIE_PATH = "/api/v1/auth";
+    private static final String REFRESH_COOKIE_PATH = "/api/v1/auth/refresh";
     private static final long REFRESH_TOKEN_MAX_AGE_SECONDS = 7L * 24 * 60 * 60;
 
     private final AuthService authService;
+    private final PasskeyAuthService passkeyAuthService;
     private final AuthMapper authMapper;
     private final SecurityUtils securityUtils;
 
-    public AuthController(AuthService authService, AuthMapper authMapper, SecurityUtils securityUtils) {
+    public AuthController(AuthService authService, PasskeyAuthService passkeyAuthService, AuthMapper authMapper, SecurityUtils securityUtils) {
         this.authService = authService;
+        this.passkeyAuthService = passkeyAuthService;
         this.authMapper = authMapper;
         this.securityUtils = securityUtils;
     }
@@ -229,4 +232,33 @@ public class AuthController {
     public ResponseEntity<MessageResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         return ResponseEntity.ok(authService.changePassword(request));
     }
+
+    @PostMapping("/passkey/register/options")
+    public ResponseEntity<PasskeyOptionsResponse> passkeyRegisterOptions() {
+        return ResponseEntity.ok(passkeyAuthService.registerOptions());
+    }
+
+    @PostMapping("/passkey/register/verify")
+    public ResponseEntity<MessageResponse> passkeyRegisterVerify(@Valid @RequestBody PasskeyVerifyRequest request) {
+        return ResponseEntity.ok(passkeyAuthService.registerVerify(request));
+    }
+
+    @PostMapping("/passkey/login/options")
+    public ResponseEntity<PasskeyOptionsResponse> passkeyLoginOptions(@Valid @RequestBody PasskeyLoginOptionsRequest request) {
+        return ResponseEntity.ok(passkeyAuthService.loginOptions(request));
+    }
+
+    @PostMapping("/passkey/login/verify")
+    public ResponseEntity<AuthResponse> passkeyLoginVerify(@Valid @RequestBody PasskeyVerifyRequest request,
+                                                           HttpServletResponse response) {
+        AuthResponse authResponse = passkeyAuthService.loginVerify(request);
+        setRefreshTokenCookie(response, authService.getLastRefreshToken());
+        return ResponseEntity.ok(authResponse);
+    }
+
+    @GetMapping("/passkey/me")
+    public ResponseEntity<PasskeyStatusResponse> passkeyMe() {
+        return ResponseEntity.ok(passkeyAuthService.me());
+    }
+
 }

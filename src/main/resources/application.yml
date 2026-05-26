@@ -76,6 +76,14 @@ app:
     oauth-complete-url: ${GOOGLE_DRIVE_OAUTH_COMPLETE_URL:}
     authorization-uri: ${GOOGLE_DRIVE_AUTHORIZATION_URI:https://accounts.google.com/o/oauth2/v2/auth}
     token-uri: ${GOOGLE_DRIVE_TOKEN_URI:https://oauth2.googleapis.com/token}
+  webauthn:
+    rp-id: ${APP_WEBAUTHN_RP_ID:localhost}
+    rp-name: ${APP_WEBAUTHN_RP_NAME:JobApplyTracker}
+    origins:
+      - ${APP_WEBAUTHN_ORIGIN_1:http://localhost:3000}
+      - ${APP_WEBAUTHN_ORIGIN_2:http://localhost:5173}
+      - ${APP_WEBAUTHN_ORIGIN_3:https://jobapply-web.hugojava.dev}
+    challenge-timeout-seconds: ${APP_WEBAUTHN_CHALLENGE_TIMEOUT_SECONDS:300}
 
 management:
   server:

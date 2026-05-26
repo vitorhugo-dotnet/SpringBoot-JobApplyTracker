@@ -23,6 +23,7 @@
         <testcontainers.version>1.19.8</testcontainers.version>
         <rest-assured.version>5.4.0</rest-assured.version>
         <native.maven.plugin.version>0.10.2</native.maven.plugin.version>
+        <webauthn-server.version>2.7.0</webauthn-server.version>
     </properties>
 
     <dependencies>
@@ -151,6 +152,11 @@
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.yubico</groupId>
+            <artifactId>webauthn-server-core</artifactId>
+            <version>${webauthn-server.version}</version>
         </dependency>
 
         <!-- Spring OAuth2 Client (token exchange infrastructure) -->
