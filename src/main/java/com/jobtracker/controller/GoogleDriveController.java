@@ -112,8 +112,8 @@ public class GoogleDriveController {
     @Operation(summary = "Detect placeholders in a configured base resume")
     @PreAuthorize("hasRole('BETA')")
     @PostMapping("/resume-placeholders")
-    public ResponseEntity<ResumePlaceholderResponse> detectResumePlaceholders(
-            @Valid @RequestBody ResumePlaceholderRequest request) {
+    public ResponseEntity<ResumePlaceholderDetectionResponse> detectResumePlaceholders(
+            @Valid @RequestBody ResumePlaceholderDetectionRequest request) {
         return ResponseEntity.ok(resumeGenerationService.detectPlaceholders(request));
     }
 
@@ -124,6 +124,6 @@ public class GoogleDriveController {
             @PathVariable UUID applicationId,
             @Valid @RequestBody ResumePlaceholderRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(resumeGenerationService.generateResume(applicationId, request));
+                .body(resumeGenerationService.generateTemplateResume(applicationId, request));
     }
 }

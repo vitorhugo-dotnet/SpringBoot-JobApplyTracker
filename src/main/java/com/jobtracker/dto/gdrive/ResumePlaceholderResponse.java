@@ -7,20 +7,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Schema(description = "Resume placeholder detection or generation result")
+@Schema(description = "Generated resume from template placeholders")
 public record ResumePlaceholderResponse(
         UUID applicationId,
         UUID baseResumeId,
-        List<String> placeholders,
-        Map<String, String> values,
         String copiedFileId,
-        String copiedFileName,
-        String documentWebViewLink,
         String pdfFileId,
-        String pdfFileName,
-        String pdfWebViewLink,
-        String vacancyFolderId,
-        String vacancyFolderName,
-        String vacancyFolderWebViewLink,
+        String documentUrl,
+        String pdfUrl,
+        Map<String, String> values,
+        List<String> placeholders,
         LocalDateTime generatedAt
 ) {}

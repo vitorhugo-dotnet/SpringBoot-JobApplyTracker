@@ -125,7 +125,7 @@ class ResumeGenerationTemplateFlowTest {
                         "https://drive.google.com/file/d/pdf-id/view"
                 ));
 
-        service.generateResume(APPLICATION_ID, new ResumePlaceholderRequest(
+        service.generateTemplateResume(APPLICATION_ID, new ResumePlaceholderRequest(
                 BASE_RESUME_ID,
                 Map.of(
                         "SUMMARY", "Senior Java Engineer",

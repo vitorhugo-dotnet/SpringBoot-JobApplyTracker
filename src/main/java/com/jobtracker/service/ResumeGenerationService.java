@@ -1,6 +1,8 @@
 package com.jobtracker.service;
 
 import com.jobtracker.config.GoogleDriveProperties;
+import com.jobtracker.dto.gdrive.ResumePlaceholderDetectionRequest;
+import com.jobtracker.dto.gdrive.ResumePlaceholderDetectionResponse;
 import com.jobtracker.dto.gdrive.ResumePlaceholderRequest;
 import com.jobtracker.dto.gdrive.ResumePlaceholderResponse;
 import com.jobtracker.entity.GoogleDriveBaseResume;
@@ -51,32 +53,20 @@ public class ResumeGenerationService {
     }
 
     @Transactional
-    public ResumePlaceholderResponse detectPlaceholders(ResumePlaceholderRequest request) {
+    public ResumePlaceholderDetectionResponse detectPlaceholders(ResumePlaceholderDetectionRequest request) {
         UUID userId = securityUtils.getCurrentUserId();
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
         GoogleDriveBaseResume baseResume = getBaseResume(request.baseResumeId(), userId);
         String documentText = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), baseResume.getGoogleFileId());
 
-        return new ResumePlaceholderResponse(
-                null,
+        return new ResumePlaceholderDetectionResponse(
                 baseResume.getId(),
-                detectPlaceholders(documentText),
-                Map.of(),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
+                detectPlaceholders(documentText)
         );
     }
 
     @Transactional
-    public ResumePlaceholderResponse generateResume(UUID applicationId, ResumePlaceholderRequest request) {
+    public ResumePlaceholderResponse generateTemplateResume(UUID applicationId, ResumePlaceholderRequest request) {
         UUID userId = securityUtils.getCurrentUserId();
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
         JobApplication application = applicationRepository.findByIdAndUserId(applicationId, userId)
@@ -131,17 +121,12 @@ public class ResumeGenerationService {
         return new ResumePlaceholderResponse(
                 application.getId(),
                 baseResume.getId(),
-                remainingPlaceholders,
-                values,
                 copiedFile.id(),
-                copiedFile.name(),
-                copiedDocumentUrl,
                 pdfFile.id(),
-                pdfFile.name(),
+                copiedDocumentUrl,
                 resolveDocumentLink(pdfFile),
-                vacancyFolder.id(),
-                vacancyFolder.name(),
-                resolveFolderLink(vacancyFolder.id(), vacancyFolder.webViewLink()),
+                values,
+                remainingPlaceholders,
                 generatedAt
         );
     }
@@ -260,9 +245,4 @@ public class ResumeGenerationService {
                 : "https://docs.google.com/document/d/" + file.id() + "/edit";
     }
 
-    private String resolveFolderLink(String folderId, String webViewLink) {
-        return StringUtils.hasText(webViewLink)
-                ? webViewLink
-                : "https://drive.google.com/drive/folders/" + folderId;
-    }
 }

@@ -390,6 +390,8 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.placeholders").isEmpty())
                 .andExpect(jsonPath("$.copiedFileId").value("copied-file"))
                 .andExpect(jsonPath("$.pdfFileId").value("pdf-file"))
+                .andExpect(jsonPath("$.documentUrl").value("https://docs.google.com/document/d/copied-file/edit"))
+                .andExpect(jsonPath("$.pdfUrl").value("https://docs.google.com/document/d/pdf-file/edit"))
                 .andExpect(jsonPath("$.generatedAt").isNotEmpty());
 
         JobApplication savedApplication = applicationRepository.findById(application.getId()).orElseThrow();
