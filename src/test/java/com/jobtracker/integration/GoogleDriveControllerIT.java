@@ -36,7 +36,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -438,6 +437,8 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
     }
 
     static class FakeGoogleDriveApiClient implements GoogleDriveApiClient {
+        private static final String DEFAULT_TEMPLATE_TEXT = "{{SUMMARY}}\n{{SKILLS}}";
+
         private OAuthTokens tokens = new OAuthTokens(
                 "drive-access",
                 "drive-refresh",
@@ -452,8 +453,8 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
         void reset() {
             fileMetadataById.clear();
             documentTextById.clear();
-            documentTextById.put("resume-file-id", "{{SUMMARY}}\n{{SKILLS}}");
-            documentTextById.put("copied-file", "{{SUMMARY}}\n{{SKILLS}}");
+            documentTextById.put("resume-file-id", DEFAULT_TEMPLATE_TEXT);
+            documentTextById.put("copied-file", DEFAULT_TEMPLATE_TEXT);
         }
 
         @Override
@@ -493,14 +494,14 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
 
         @Override
         public DriveFileMetadata copyGoogleDoc(String accessToken, String sourceFileId, String targetFolderId, String newName) {
-            String sourceText = documentTextById.getOrDefault(sourceFileId, "{{SUMMARY}}\n{{SKILLS}}");
+            String sourceText = documentTextById.getOrDefault(sourceFileId, DEFAULT_TEMPLATE_TEXT);
             documentTextById.put("copied-file", sourceText);
             return new DriveFileMetadata("copied-file", newName, GOOGLE_DOC_MIME_TYPE, null);
         }
 
         @Override
         public String readGoogleDocText(String accessToken, String documentId) {
-            return documentTextById.getOrDefault(documentId, "{{SUMMARY}}\n{{SKILLS}}");
+            return documentTextById.getOrDefault(documentId, DEFAULT_TEMPLATE_TEXT);
         }
 
         @Override
@@ -508,10 +509,9 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
             if (values == null || values.isEmpty()) {
                 return;
             }
-            String currentText = documentTextById.getOrDefault(documentId, "{{SUMMARY}}\n{{SKILLS}}");
+            String currentText = documentTextById.getOrDefault(documentId, DEFAULT_TEMPLATE_TEXT);
             String updatedText = currentText;
-            Map<String, String> orderedValues = new LinkedHashMap<>(values);
-            for (Map.Entry<String, String> entry : orderedValues.entrySet()) {
+            for (Map.Entry<String, String> entry : values.entrySet()) {
                 String replacement = entry.getValue() == null ? "" : entry.getValue();
                 updatedText = updatedText.replace("{{" + entry.getKey() + "}}", replacement);
             }
