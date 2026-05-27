@@ -344,7 +344,7 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
                         .content("{\"baseResumeId\":\"" + resume.getId() + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.baseResumeId").value(resume.getId().toString()))
-                .andExpect(jsonPath("$.applicationId").isEmpty())
+                .andExpect(jsonPath("$.applicationId").doesNotExist())
                 .andExpect(jsonPath("$.placeholders[0]").value("SUMMARY"))
                 .andExpect(jsonPath("$.placeholders[1]").value("SKILLS"));
     }
@@ -398,11 +398,11 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void generateResume_shouldReplacePlaceholdersWhenTemplateContainsWhitespaceInBraces() throws Exception {
+    void generateResume_shouldKeepUnresolvedPlaceholdersInResponse() throws Exception {
         GoogleDriveConnection connection = googleDriveConnectionRepository.save(buildConnectionWithRootFolder());
         GoogleDriveBaseResume resume = buildBaseResume(connection);
         googleDriveBaseResumeRepository.save(resume);
-        googleDriveApiClient.setDocumentText("resume-file-id", "{{ SUMMARY }}\n{{SKILLS}}\n{{UNKNOWN}}");
+        googleDriveApiClient.setDocumentText("resume-file-id", "{{SUMMARY}}\n{{SKILLS}}\n{{UNKNOWN}}");
 
         JobApplication application = new JobApplication();
         application.setUser(userRepository.findByEmail("driveuser@example.com").orElseThrow());
@@ -561,10 +561,7 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
                 if (token == null || token.isBlank()) {
                     continue;
                 }
-                String trimmedToken = token.trim();
-                String placeholderToken = trimmedToken.startsWith("{{") && trimmedToken.endsWith("}}")
-                        ? trimmedToken
-                        : "{{" + token + "}}";
+                String placeholderToken = "{{" + token.trim() + "}}";
                 updatedText = updatedText.replace(placeholderToken, replacement);
             }
             documentTextById.put(documentId, updatedText);

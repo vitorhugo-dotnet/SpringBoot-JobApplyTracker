@@ -252,8 +252,7 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
                 .filter(entry -> entry.getKey() != null && !entry.getKey().isBlank())
                 .map(entry -> new Request().setReplaceAllText(new ReplaceAllTextRequest()
                         .setContainsText(new SubstringMatchCriteria()
-                                // Supports both legacy keys (SUMMARY) and detected tokens ({{ SUMMARY }}).
-                                .setText(resolvePlaceholderToken(entry.getKey()))
+                                .setText(toPlaceholderToken(entry.getKey()))
                                 .setMatchCase(true))
                         .setReplaceText(entry.getValue() == null ? "" : entry.getValue())))
                 .toList();
@@ -361,16 +360,7 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
                 file.getWebViewLink());
     }
 
-    /**
-     * Accepts both legacy placeholder keys (e.g. {@code SUMMARY}) and already wrapped tokens
-     * (e.g. {@code {{ SUMMARY }}}) so callers can replace placeholders exactly as detected from
-     * template content while remaining backward compatible with existing callers.
-     */
-    private String resolvePlaceholderToken(String value) {
-        String trimmed = value.trim();
-        if (trimmed.startsWith("{{") && trimmed.endsWith("}}")) {
-            return trimmed;
-        }
-        return "{{" + trimmed + "}}";
+    private String toPlaceholderToken(String key) {
+        return "{{" + key.trim() + "}}";
     }
 }

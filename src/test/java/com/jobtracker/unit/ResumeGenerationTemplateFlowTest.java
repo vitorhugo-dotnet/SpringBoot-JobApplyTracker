@@ -46,7 +46,7 @@ class ResumeGenerationTemplateFlowTest {
     @Mock private SecurityUtils securityUtils;
 
     @Test
-    void generateResume_shouldReplaceSpacedAndUnspacedPlaceholdersFromTemplateContent() {
+    void generateResume_shouldReplaceStrictPlaceholdersFromProvidedValues() {
         ResumeGenerationService service = new ResumeGenerationService(
                 googleDriveApiClient,
                 new GoogleDriveProperties("client", "secret", "cb", "frontend", "auth", "token"),
@@ -105,14 +105,14 @@ class ResumeGenerationTemplateFlowTest {
                         GoogleDriveApiClient.GOOGLE_DOC_MIME_TYPE,
                         "https://docs.google.com/document/d/copied-doc-id/edit"
                 ));
-        AtomicReference<String> mockDocumentContent = new AtomicReference<>("{{ SUMMARY }}\n{{SKILLS}}\n{{UNMAPPED}}");
+        AtomicReference<String> mockDocumentContent = new AtomicReference<>("{{SUMMARY}}\n{{SKILLS}}\n{{UNMAPPED}}");
         when(googleDriveApiClient.readGoogleDocText("access-token", "copied-doc-id"))
                 .thenAnswer(invocation -> mockDocumentContent.get());
         doAnswer(invocation -> {
             Map<String, String> replacements = invocation.getArgument(2);
             String updated = mockDocumentContent.get();
             for (Map.Entry<String, String> entry : replacements.entrySet()) {
-                updated = updated.replace(entry.getKey(), entry.getValue());
+                updated = updated.replace("{{" + entry.getKey().trim() + "}}", entry.getValue());
             }
             mockDocumentContent.set(updated);
             return null;
@@ -135,8 +135,7 @@ class ResumeGenerationTemplateFlowTest {
 
         ArgumentCaptor<Map<String, String>> valuesCaptor = ArgumentCaptor.forClass(Map.class);
         verify(googleDriveApiClient).replaceGoogleDocPlaceholders(eq("access-token"), eq("copied-doc-id"), valuesCaptor.capture());
-        assertThat(valuesCaptor.getValue()).containsEntry("{{ SUMMARY }}", "Senior Java Engineer");
-        assertThat(valuesCaptor.getValue()).containsEntry("{{SKILLS}}", "Spring Boot, PostgreSQL");
-        assertThat(valuesCaptor.getValue()).doesNotContainKeys("SUMMARY", "SKILLS");
+        assertThat(valuesCaptor.getValue()).containsEntry("SUMMARY", "Senior Java Engineer");
+        assertThat(valuesCaptor.getValue()).containsEntry("SKILLS", "Spring Boot, PostgreSQL");
     }
 }
