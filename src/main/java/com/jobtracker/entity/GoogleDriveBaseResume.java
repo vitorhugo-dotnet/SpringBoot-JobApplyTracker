@@ -29,6 +29,12 @@ public class GoogleDriveBaseResume {
     @Column(name = "document_name", nullable = false, length = 255)
     private String documentName;
 
+    @Column(name = "language", length = 10)
+    private String language;
+
+    @Column(name = "is_template", nullable = false)
+    private boolean template;
+
     @Column(name = "web_view_link", length = 2048)
     private String webViewLink;
 
@@ -79,6 +85,22 @@ public class GoogleDriveBaseResume {
 
     public void setDocumentName(String documentName) {
         this.documentName = documentName;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public boolean isTemplate() {
+        return template;
+    }
+
+    public void setTemplate(boolean template) {
+        this.template = template;
     }
 
     public String getWebViewLink() {

@@ -36,6 +36,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -440,6 +441,103 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
 
         assertThat(googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), "copied-file"))
                 .contains("{{UNKNOWN}}");
+    }
+
+    @Test
+    void listBaseResumes_shouldReturnEmptyListWhenNoResumes() throws Exception {
+        googleDriveConnectionRepository.save(buildConnection());
+
+        mockMvc.perform(get("/api/v1/google-drive/base-resumes")
+                        .header("Authorization", "Bearer " + betaAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void listBaseResumes_shouldReturnRegisteredResumes() throws Exception {
+        GoogleDriveConnection connection = googleDriveConnectionRepository.save(buildConnection());
+        GoogleDriveBaseResume resume = buildBaseResume(connection);
+        resume.setLanguage("EN");
+        resume.setTemplate(true);
+        googleDriveBaseResumeRepository.save(resume);
+
+        mockMvc.perform(get("/api/v1/google-drive/base-resumes")
+                        .header("Authorization", "Bearer " + betaAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value(resume.getId().toString()))
+                .andExpect(jsonPath("$[0].name").value("Base Resume"))
+                .andExpect(jsonPath("$[0].language").value("EN"))
+                .andExpect(jsonPath("$[0].template").value(true))
+                .andExpect(jsonPath("$[0].createdAt").isNotEmpty());
+    }
+
+    @Test
+    void listBaseResumes_shouldReturn403_whenUserDoesNotHaveBetaRole() throws Exception {
+        mockMvc.perform(get("/api/v1/google-drive/base-resumes")
+                        .header("Authorization", "Bearer " + nonBetaAccessToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getBaseResumeContent_shouldReturnDocumentText() throws Exception {
+        GoogleDriveConnection connection = googleDriveConnectionRepository.save(buildConnection());
+        GoogleDriveBaseResume resume = buildBaseResume(connection);
+        resume.setLanguage("EN");
+        resume.setTemplate(true);
+        googleDriveBaseResumeRepository.save(resume);
+
+        googleDriveApiClient.setDocumentText("resume-file-id", "{{SUMMARY}}\nSome resume content\n{{SKILLS}}");
+
+        mockMvc.perform(get("/api/v1/google-drive/base-resumes/" + resume.getId() + "/content")
+                        .header("Authorization", "Bearer " + betaAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(resume.getId().toString()))
+                .andExpect(jsonPath("$.name").value("Base Resume"))
+                .andExpect(jsonPath("$.language").value("EN"))
+                .andExpect(jsonPath("$.template").value(true))
+                .andExpect(jsonPath("$.content").value("{{SUMMARY}}\nSome resume content\n{{SKILLS}}"));
+    }
+
+    @Test
+    void getBaseResumeContent_shouldReturn404ForUnknownId() throws Exception {
+        googleDriveConnectionRepository.save(buildConnection());
+
+        mockMvc.perform(get("/api/v1/google-drive/base-resumes/" + UUID.randomUUID() + "/content")
+                        .header("Authorization", "Bearer " + betaAccessToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getBaseResumeContent_shouldReturn403_whenUserDoesNotHaveBetaRole() throws Exception {
+        mockMvc.perform(get("/api/v1/google-drive/base-resumes/" + UUID.randomUUID() + "/content")
+                        .header("Authorization", "Bearer " + nonBetaAccessToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void addBaseResume_shouldPersistLanguageAndTemplateFlag() throws Exception {
+        googleDriveConnectionRepository.save(buildConnection());
+        googleDriveApiClient.fileMetadataById.put("doc-en",
+                new GoogleDriveApiClient.DriveFileMetadata(
+                        "doc-en",
+                        "BASE - CV - Vitor Hugo EN",
+                        GoogleDriveApiClient.GOOGLE_DOC_MIME_TYPE,
+                        "https://docs.google.com/document/d/doc-en/edit"
+                ));
+
+        mockMvc.perform(post("/api/v1/google-drive/base-resumes")
+                        .header("Authorization", "Bearer " + betaAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"documentIdOrUrl\":\"doc-en\",\"language\":\"EN\",\"template\":true}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.documentName").value("BASE - CV - Vitor Hugo EN"));
+
+        List<GoogleDriveBaseResume> saved = googleDriveBaseResumeRepository.findAll();
+        assertThat(saved).hasSize(1);
+        assertThat(saved.get(0).getLanguage()).isEqualTo("EN");
+        assertThat(saved.get(0).isTemplate()).isTrue();
     }
 
     private GoogleDriveConnection buildConnectionWithRootFolder() {

@@ -7,5 +7,11 @@ import jakarta.validation.constraints.NotBlank;
 public record GoogleDriveBaseResumeRequest(
         @Schema(description = "Google Docs document ID or URL", example = "https://docs.google.com/document/d/1234567890abcdef/edit")
         @NotBlank(message = "documentIdOrUrl is required")
-        String documentIdOrUrl
+        String documentIdOrUrl,
+
+        @Schema(description = "Language code of the resume (e.g. EN, PT)", example = "EN")
+        String language,
+
+        @Schema(description = "Whether this resume is a template", example = "true")
+        boolean template
 ) {}

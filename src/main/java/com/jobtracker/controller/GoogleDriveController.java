@@ -6,6 +6,8 @@ import com.jobtracker.service.GoogleDriveOAuthService;
 import com.jobtracker.service.GoogleDriveService;
 import com.jobtracker.service.ResumeGenerationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -18,6 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Google Drive", description = "Google Drive OAuth and resume copy endpoints")
@@ -83,12 +86,30 @@ public class GoogleDriveController {
         return ResponseEntity.ok(googleDriveService.updateRootFolder(request));
     }
 
-    @Operation(summary = "Register a Google Docs base resume")
+    @Operation(
+            summary = "Register a Google Docs base resume",
+            description = "Registers a Google Docs document as a base resume for the authenticated user. " +
+                    "Optionally set the language code and template flag for GPT/frontend discovery."
+    )
     @PreAuthorize("hasRole('BETA')")
     @PostMapping("/base-resumes")
     public ResponseEntity<GoogleDriveBaseResumeResponse> addBaseResume(
             @Valid @RequestBody GoogleDriveBaseResumeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(googleDriveService.addBaseResume(request));
+    }
+
+    @Operation(
+            summary = "List all base resumes for the authenticated user",
+            description = "Returns lightweight metadata for all base resumes registered by the authenticated user. " +
+                    "Use the returned UUID `id` field in subsequent API calls. " +
+                    "Filenames and Google file IDs are NOT valid identifiers for resume operations.",
+            responses = @ApiResponse(responseCode = "200", description = "List of base resumes",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = BaseResumeResponse.class))))
+    )
+    @PreAuthorize("hasRole('BETA')")
+    @GetMapping("/base-resumes")
+    public ResponseEntity<List<BaseResumeResponse>> listBaseResumes() {
+        return ResponseEntity.ok(googleDriveService.listBaseResumes());
     }
 
     @Operation(summary = "Delete a configured base resume")
@@ -97,6 +118,26 @@ public class GoogleDriveController {
     public ResponseEntity<MessageResponse> deleteBaseResume(@PathVariable UUID baseResumeId) {
         googleDriveService.deleteBaseResume(baseResumeId);
         return ResponseEntity.ok(new MessageResponse("Base resume deleted successfully"));
+    }
+
+    @Operation(
+            summary = "Get plain text content of a base resume",
+            description = "Reads and returns the plain text content of the specified Google Docs base resume. " +
+                    "Template placeholders such as {{SUMMARY}} and {{SKILLS}} are preserved as-is. " +
+                    "The `resumeId` path parameter MUST be a UUID — filenames are NOT valid.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Resume content retrieved",
+                            content = @Content(schema = @Schema(implementation = BaseResumeContentResponse.class))),
+                    @ApiResponse(responseCode = "404", description = "Base resume not found")
+            }
+    )
+    @PreAuthorize("hasRole('BETA')")
+    @GetMapping("/base-resumes/{resumeId}/content")
+    public ResponseEntity<BaseResumeContentResponse> getBaseResumeContent(
+            @Parameter(description = "UUID of the base resume. NOT the filename.",
+                    schema = @Schema(type = "string", format = "uuid"))
+            @PathVariable UUID resumeId) {
+        return ResponseEntity.ok(resumeGenerationService.getBaseResumeContent(resumeId));
     }
 
     @Operation(summary = "Copy a base resume into an application folder")
