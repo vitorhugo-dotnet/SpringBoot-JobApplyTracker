@@ -23,10 +23,12 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -103,9 +105,18 @@ class ResumeGenerationTemplateFlowTest {
                         GoogleDriveApiClient.GOOGLE_DOC_MIME_TYPE,
                         "https://docs.google.com/document/d/copied-doc-id/edit"
                 ));
+        AtomicReference<String> copiedText = new AtomicReference<>("{{ SUMMARY }}\n{{SKILLS}}\n{{UNMAPPED}}");
         when(googleDriveApiClient.readGoogleDocText("access-token", "copied-doc-id"))
-                .thenReturn("{{ SUMMARY }}\n{{SKILLS}}\n{{UNMAPPED}}")
-                .thenReturn("Senior Java Engineer\nSpring Boot, PostgreSQL\n{{UNMAPPED}}");
+                .thenAnswer(invocation -> copiedText.get());
+        doAnswer(invocation -> {
+            Map<String, String> replacements = invocation.getArgument(2);
+            String updated = copiedText.get();
+            for (Map.Entry<String, String> entry : replacements.entrySet()) {
+                updated = updated.replace(entry.getKey(), entry.getValue());
+            }
+            copiedText.set(updated);
+            return null;
+        }).when(googleDriveApiClient).replaceGoogleDocPlaceholders(eq("access-token"), eq("copied-doc-id"), any());
         when(googleDriveApiClient.exportGoogleDocAsPdf(eq("access-token"), eq("copied-doc-id"), eq("vacancy-folder-id"), any()))
                 .thenReturn(new GoogleDriveApiClient.DriveFileMetadata(
                         "pdf-id",

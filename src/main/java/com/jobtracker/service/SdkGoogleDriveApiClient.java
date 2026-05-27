@@ -360,6 +360,11 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
                 file.getWebViewLink());
     }
 
+    /**
+     * Accepts both legacy placeholder keys (e.g. {@code SUMMARY}) and already wrapped tokens
+     * (e.g. {@code {{ SUMMARY }}}) so callers can replace placeholders exactly as detected from
+     * template content while remaining backward compatible with existing callers.
+     */
     private String resolvePlaceholderToken(String value) {
         String trimmed = value.trim();
         if (trimmed.startsWith("{{") && trimmed.endsWith("}}")) {

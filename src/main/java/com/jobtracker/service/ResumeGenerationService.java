@@ -173,7 +173,8 @@ public class ResumeGenerationService {
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(templateText);
         Map<String, String> replacementValues = new LinkedHashMap<>();
         while (matcher.find()) {
-            String placeholderName = matcher.group(1) == null ? null : matcher.group(1).trim();
+            String placeholderContent = matcher.group(1);
+            String placeholderName = placeholderContent == null ? null : placeholderContent.trim();
             if (!StringUtils.hasText(placeholderName) || !providedValues.containsKey(placeholderName)) {
                 continue;
             }
