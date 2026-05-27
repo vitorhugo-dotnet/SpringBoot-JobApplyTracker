@@ -152,7 +152,7 @@ class GoogleDriveServiceTest {
                         null
                 ));
 
-        assertThatThrownBy(() -> googleDriveService.addBaseResume(new GoogleDriveBaseResumeRequest("not-a-doc")))
+        assertThatThrownBy(() -> googleDriveService.addBaseResume(new GoogleDriveBaseResumeRequest("not-a-doc", null, false)))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Only Google Docs base resumes are supported");
     }

@@ -99,6 +99,8 @@ public class GoogleDriveService {
         resume.setGoogleFileId(file.id());
         resume.setDocumentName(file.name());
         resume.setWebViewLink(resolveDocumentLink(file));
+        resume.setLanguage(request.language());
+        resume.setTemplate(request.template());
         try {
             GoogleDriveBaseResume saved = baseResumeRepository.save(resume);
             return toBaseResumeResponse(saved);
@@ -116,6 +118,15 @@ public class GoogleDriveService {
         GoogleDriveBaseResume resume = baseResumeRepository.findByIdAndConnectionUserId(baseResumeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Base resume not found with id: " + baseResumeId));
         baseResumeRepository.delete(resume);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BaseResumeResponse> listBaseResumes() {
+        UUID userId = securityUtils.getCurrentUserId();
+        return baseResumeRepository.findAllByConnectionUserIdOrderByCreatedAtAsc(userId)
+                .stream()
+                .map(this::toBaseResumeListingResponse)
+                .toList();
     }
 
     @Transactional
@@ -264,6 +275,16 @@ public class GoogleDriveService {
                 resume.getGoogleFileId(),
                 resume.getDocumentName(),
                 resume.getWebViewLink(),
+                resume.getCreatedAt()
+        );
+    }
+
+    private BaseResumeResponse toBaseResumeListingResponse(GoogleDriveBaseResume resume) {
+        return new BaseResumeResponse(
+                resume.getId(),
+                resume.getDocumentName(),
+                resume.getLanguage(),
+                resume.isTemplate(),
                 resume.getCreatedAt()
         );
     }

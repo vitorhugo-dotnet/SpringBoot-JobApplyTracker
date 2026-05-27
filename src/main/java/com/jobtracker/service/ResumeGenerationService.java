@@ -1,6 +1,7 @@
 package com.jobtracker.service;
 
 import com.jobtracker.config.GoogleDriveProperties;
+import com.jobtracker.dto.gdrive.BaseResumeContentResponse;
 import com.jobtracker.dto.gdrive.ResumePlaceholderDetectionRequest;
 import com.jobtracker.dto.gdrive.ResumePlaceholderDetectionResponse;
 import com.jobtracker.dto.gdrive.ResumePlaceholderRequest;
@@ -62,6 +63,22 @@ public class ResumeGenerationService {
         return new ResumePlaceholderDetectionResponse(
                 baseResume.getId(),
                 detectPlaceholders(documentText)
+        );
+    }
+
+    @Transactional
+    public BaseResumeContentResponse getBaseResumeContent(UUID resumeId) {
+        UUID userId = securityUtils.getCurrentUserId();
+        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        GoogleDriveBaseResume baseResume = getBaseResume(resumeId, userId);
+        String content = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), baseResume.getGoogleFileId());
+        connectionRepository.save(connection);
+        return new BaseResumeContentResponse(
+                baseResume.getId(),
+                baseResume.getDocumentName(),
+                baseResume.getLanguage(),
+                baseResume.isTemplate(),
+                content
         );
     }
 
