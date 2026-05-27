@@ -137,5 +137,6 @@ class ResumeGenerationTemplateFlowTest {
         verify(googleDriveApiClient).replaceGoogleDocPlaceholders(eq("access-token"), eq("copied-doc-id"), valuesCaptor.capture());
         assertThat(valuesCaptor.getValue()).containsEntry("SUMMARY", "Senior Java Engineer");
         assertThat(valuesCaptor.getValue()).containsEntry("SKILLS", "Spring Boot, PostgreSQL");
+        assertThat(mockDocumentContent.get()).contains("{{UNMAPPED}}");
     }
 }

@@ -435,6 +435,9 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.values.SUMMARY").value("Senior Java Engineer"))
                 .andExpect(jsonPath("$.values.SKILLS").value("Spring Boot, PostgreSQL"))
                 .andExpect(jsonPath("$.placeholders[0]").value("UNKNOWN"));
+
+        assertThat(googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), "copied-file"))
+                .contains("{{UNKNOWN}}");
     }
 
     private GoogleDriveConnection buildConnectionWithRootFolder() {
