@@ -2,6 +2,7 @@ package com.jobtracker.controller;
 
 import com.jobtracker.dto.auth.MessageResponse;
 import com.jobtracker.dto.gdrive.*;
+import com.jobtracker.service.GoogleDriveGeneratedResumeDownloadService;
 import com.jobtracker.service.GoogleDriveOAuthService;
 import com.jobtracker.service.GoogleDriveService;
 import com.jobtracker.service.ResumeGenerationService;
@@ -14,7 +15,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -31,13 +36,16 @@ public class GoogleDriveController {
     private final GoogleDriveOAuthService googleDriveOAuthService;
     private final GoogleDriveService googleDriveService;
     private final ResumeGenerationService resumeGenerationService;
+    private final GoogleDriveGeneratedResumeDownloadService generatedResumeDownloadService;
 
     public GoogleDriveController(GoogleDriveOAuthService googleDriveOAuthService,
                                  GoogleDriveService googleDriveService,
-                                 ResumeGenerationService resumeGenerationService) {
+                                 ResumeGenerationService resumeGenerationService,
+                                 GoogleDriveGeneratedResumeDownloadService generatedResumeDownloadService) {
         this.googleDriveOAuthService = googleDriveOAuthService;
         this.googleDriveService = googleDriveService;
         this.resumeGenerationService = resumeGenerationService;
+        this.generatedResumeDownloadService = generatedResumeDownloadService;
     }
 
     @Operation(
@@ -166,5 +174,35 @@ public class GoogleDriveController {
             @Valid @RequestBody ResumePlaceholderRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(resumeGenerationService.generateTemplateResume(applicationId, request));
+    }
+
+    @Operation(summary = "Download generated resume as DOCX")
+    @PreAuthorize("hasRole('BETA')")
+    @GetMapping("/applications/{applicationId}/generated-resumes/docx")
+    public ResponseEntity<ByteArrayResource> downloadGeneratedResumeDocx(@PathVariable UUID applicationId) {
+        return buildDownloadResponse(generatedResumeDownloadService.downloadAsDocx(applicationId));
+    }
+
+    @Operation(summary = "Download generated resume as PDF")
+    @PreAuthorize("hasRole('BETA')")
+    @GetMapping("/applications/{applicationId}/generated-resumes/pdf")
+    public ResponseEntity<ByteArrayResource> downloadGeneratedResumePdf(@PathVariable UUID applicationId) {
+        return buildDownloadResponse(generatedResumeDownloadService.downloadAsPdf(applicationId));
+    }
+
+    private ResponseEntity<ByteArrayResource> buildDownloadResponse(
+            GoogleDriveGeneratedResumeDownloadService.DownloadedFile file) {
+
+        ByteArrayResource resource = new ByteArrayResource(file.content());
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .contentLength(file.content().length)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(file.fileName())
+                                .build()
+                                .toString())
+                .body(resource);
     }
 }
