@@ -4,8 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.FormHttpMessageConverter;
-import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient;
-import org.springframework.security.oauth2.client.endpoint.DefaultRefreshTokenTokenResponseClient;
+import org.springframework.security.oauth2.client.endpoint.RestClientAuthorizationCodeTokenResponseClient;
+import org.springframework.security.oauth2.client.endpoint.RestClientRefreshTokenTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest;
@@ -23,8 +23,8 @@ import java.util.List;
  * Configures the Spring OAuth2 client infrastructure used by the Google Drive integration.
  * <p>
  * The {@link ClientRegistration} bean captures all Google OAuth2 parameters in one place so that
- * Spring's standard {@link DefaultAuthorizationCodeTokenResponseClient} and
- * {@link DefaultRefreshTokenTokenResponseClient} can handle token exchange and refresh without any
+ * Spring's standard {@link RestClientAuthorizationCodeTokenResponseClient} and
+ * {@link RestClientRefreshTokenTokenResponseClient} can handle token exchange and refresh without any
  * manual HTTP calls.
  * <p>
  * <b>How the Spring Security context provides the authorized client:</b><br>
@@ -39,9 +39,6 @@ import java.util.List;
  */
 @Configuration
 public class GoogleDriveClientConfig {
-
-    private static final int CONNECT_TIMEOUT_MS = 10_000;
-    private static final int READ_TIMEOUT_MS = 30_000;
     private static final String DISABLED_CLIENT_ID = "google-drive-disabled-client";
     private static final String DISABLED_CLIENT_SECRET = "google-drive-disabled-secret";
     private static final String DISABLED_REDIRECT_URI = "http://localhost/google-drive-disabled";
@@ -50,7 +47,7 @@ public class GoogleDriveClientConfig {
      * The {@link ClientRegistration} for Google Drive. Built programmatically from
      * {@link GoogleDriveProperties} so we have a single source of truth for OAuth2 parameters.
      * Note: a {@code ClientRegistrationRepository} bean is intentionally <em>not</em> created;
-     * that would trigger Spring Security's OAuth2 login auto-configuration which is incompatible
+     * that would trigger Spring Security's OAuth2 login autoconfiguration which is incompatible
      * with this application's stateless JWT architecture.
      */
     @Bean
@@ -80,9 +77,7 @@ public class GoogleDriveClientConfig {
      */
     @Bean
     public OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> authorizationCodeTokenResponseClient() {
-        DefaultAuthorizationCodeTokenResponseClient client = new DefaultAuthorizationCodeTokenResponseClient();
-        client.setRestOperations(buildRestTemplate());
-        return client;
+        return new RestClientAuthorizationCodeTokenResponseClient();
     }
 
     /**
@@ -91,38 +86,6 @@ public class GoogleDriveClientConfig {
      */
     @Bean
     public OAuth2AccessTokenResponseClient<OAuth2RefreshTokenGrantRequest> refreshTokenResponseClient() {
-        DefaultRefreshTokenTokenResponseClient client = new DefaultRefreshTokenTokenResponseClient();
-        client.setRestOperations(buildRestTemplate());
-        return client;
-    }
-
-    /**
-     * Builds a {@link RestTemplate} configured with the message converters and error handler
-     * required by Spring Security's OAuth2 token endpoint clients.
-     * <p>
-     * {@link FormHttpMessageConverter} encodes the token-exchange form body; without it the
-     * request body is empty and Google returns {@code invalid_grant}.
-     * {@link OAuth2AccessTokenResponseHttpMessageConverter} parses Google's JSON token response;
-     * without it the response body cannot be deserialized and the exchange fails.
-     * {@link OAuth2ErrorResponseErrorHandler} translates Google error responses into typed
-     * {@link org.springframework.security.oauth2.core.OAuth2AuthorizationException}s rather than
-     * raw {@link org.springframework.web.client.HttpClientErrorException}s.
-     * <p>
-     * This {@link RestTemplate} is <em>only</em> used for OAuth2 token-endpoint exchanges.
-     * It intentionally registers only the two converters required for that operation, which is
-     * why the default message converters ({@code StringHttpMessageConverter}, etc.) are not
-     * present.
-     */
-    private RestTemplate buildRestTemplate() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout((int) Duration.ofMillis(CONNECT_TIMEOUT_MS).toMillis());
-        factory.setReadTimeout((int) Duration.ofMillis(READ_TIMEOUT_MS).toMillis());
-        RestTemplate restTemplate = new RestTemplate(factory);
-        restTemplate.setMessageConverters(List.of(
-                new FormHttpMessageConverter(),
-                new OAuth2AccessTokenResponseHttpMessageConverter()
-        ));
-        restTemplate.setErrorHandler(new OAuth2ErrorResponseErrorHandler());
-        return restTemplate;
+        return new RestClientRefreshTokenTokenResponseClient();
     }
 }
