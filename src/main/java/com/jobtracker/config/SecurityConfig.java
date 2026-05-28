@@ -56,7 +56,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         // ROLE_USER endpoints: all remaining application APIs under /api/v1/**
                         // (including /api/v1/auth/me and /api/v1/auth/me/**).
-                        .requestMatchers("/api/v1/**").hasAnyRole("USER", "BETA", "ADMIN")
+                        .requestMatchers("/api/v1/**").hasRole("USER")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(requestLoggingFilter, JwtAuthenticationFilter.class);
