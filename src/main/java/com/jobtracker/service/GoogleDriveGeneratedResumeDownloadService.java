@@ -2,11 +2,13 @@ package com.jobtracker.service;
 
 import com.google.api.services.drive.Drive;
 import com.jobtracker.config.GoogleDriveProperties;
+import com.jobtracker.entity.GoogleDriveBaseResume;
 import com.jobtracker.entity.GoogleDriveConnection;
 import com.jobtracker.entity.JobApplication;
 import com.jobtracker.exception.BadRequestException;
 import com.jobtracker.exception.ResourceNotFoundException;
 import com.jobtracker.repository.ApplicationRepository;
+import com.jobtracker.repository.GoogleDriveBaseResumeRepository;
 import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.util.SecurityUtils;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class GoogleDriveGeneratedResumeDownloadService {
     private final GoogleDriveApiClient googleDriveApiClient;
     private final GoogleDriveProperties googleDriveProperties;
     private final GoogleDriveConnectionRepository connectionRepository;
+    private final GoogleDriveBaseResumeRepository baseResumeRepository;
     private final ApplicationRepository applicationRepository;
     private final SecurityUtils securityUtils;
 
@@ -35,27 +38,39 @@ public class GoogleDriveGeneratedResumeDownloadService {
                                                      GoogleDriveApiClient googleDriveApiClient,
                                                      GoogleDriveProperties googleDriveProperties,
                                                      GoogleDriveConnectionRepository connectionRepository,
+                                                     GoogleDriveBaseResumeRepository baseResumeRepository,
                                                      ApplicationRepository applicationRepository,
                                                      SecurityUtils securityUtils) {
         this.driveClientFactory = driveClientFactory;
         this.googleDriveApiClient = googleDriveApiClient;
         this.googleDriveProperties = googleDriveProperties;
         this.connectionRepository = connectionRepository;
+        this.baseResumeRepository = baseResumeRepository;
         this.applicationRepository = applicationRepository;
         this.securityUtils = securityUtils;
     }
 
     @Transactional
     public DownloadedFile downloadAsDocx(UUID applicationId) {
-        return download(applicationId, DOCX_MIME_TYPE, "docx");
+        return downloadApplication(applicationId, DOCX_MIME_TYPE, "docx");
     }
 
     @Transactional
     public DownloadedFile downloadAsPdf(UUID applicationId) {
-        return download(applicationId, PDF_MIME_TYPE, "pdf");
+        return downloadApplication(applicationId, PDF_MIME_TYPE, "pdf");
     }
 
-    private DownloadedFile download(UUID applicationId, String exportMimeType, String extension) {
+    @Transactional
+    public DownloadedFile downloadBaseResumeAsDocx(UUID baseResumeId) {
+        return downloadBaseResume(baseResumeId, DOCX_MIME_TYPE, "docx");
+    }
+
+    @Transactional
+    public DownloadedFile downloadBaseResumeAsPdf(UUID baseResumeId) {
+        return downloadBaseResume(baseResumeId, PDF_MIME_TYPE, "pdf");
+    }
+
+    private DownloadedFile downloadApplication(UUID applicationId, String exportMimeType, String extension) {
         UUID userId = securityUtils.getCurrentUserId();
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
         JobApplication application = applicationRepository.findByIdAndUserId(applicationId, userId)
@@ -66,7 +81,25 @@ public class GoogleDriveGeneratedResumeDownloadService {
         }
 
         byte[] content = exportDocument(connection.getAccessToken(), application.getDriveResumeFileId(), exportMimeType);
-        String fileName = buildDownloadFileName(application, extension);
+        String fileName = buildDownloadFileName(
+                firstNonBlank(application.getDriveResumeFileName(), application.getVacancyName(), application.getOrganization(), "application-resume"),
+                extension
+        );
+
+        return new DownloadedFile(fileName, exportMimeType, content);
+    }
+
+    private DownloadedFile downloadBaseResume(UUID baseResumeId, String exportMimeType, String extension) {
+        UUID userId = securityUtils.getCurrentUserId();
+        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+
+        GoogleDriveBaseResume baseResume = baseResumeRepository
+                .findByIdAndConnectionUserId(baseResumeId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Base resume not found with id: " + baseResumeId));
+
+        byte[] content = exportDocument(connection.getAccessToken(), baseResume.getGoogleFileId(), exportMimeType);
+        String fileName = buildDownloadFileName(baseResume.getDocumentName(), extension);
+
         return new DownloadedFile(fileName, exportMimeType, content);
     }
 
@@ -89,14 +122,17 @@ public class GoogleDriveGeneratedResumeDownloadService {
         GoogleDriveApiClient.OAuthTokens refreshed = googleDriveApiClient.refreshAccessToken(connection.getRefreshToken());
         connection.setAccessToken(refreshed.accessToken());
         connection.setAccessTokenExpiresAt(refreshed.accessTokenExpiresAt());
+
         if (StringUtils.hasText(refreshed.scope())) {
             connection.setGrantedScopes(refreshed.scope());
         }
+
         return connectionRepository.save(connection);
     }
 
     private byte[] exportDocument(String accessToken, String documentId, String mimeType) {
         Drive drive = driveClientFactory.create(accessToken);
+
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             drive.files().export(documentId, mimeType).executeMediaAndDownloadTo(outputStream);
@@ -106,14 +142,8 @@ public class GoogleDriveGeneratedResumeDownloadService {
         }
     }
 
-    private String buildDownloadFileName(JobApplication application, String extension) {
-        String baseName = firstNonBlank(
-                application.getDriveResumeFileName(),
-                application.getVacancyName(),
-                application.getOrganization(),
-                "application-resume"
-        );
-        String sanitized = sanitizeFileName(baseName);
+    private String buildDownloadFileName(String baseName, String extension) {
+        String sanitized = sanitizeFileName(firstNonBlank(baseName, "resume"));
         int maxLength = Math.max(1, 220 - (extension.length() + 1));
         String truncated = sanitized.length() <= maxLength ? sanitized : sanitized.substring(0, maxLength).trim();
         return truncated + "." + extension;
