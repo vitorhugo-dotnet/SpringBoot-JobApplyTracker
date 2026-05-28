@@ -186,7 +186,7 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
             if (files == null || files.isEmpty()) {
                 return Optional.empty();
             }
-            return Optional.of(toDriveFileMetadata(files.get(0)));
+            return Optional.of(toDriveFileMetadata(files.getFirst()));
         });
     }
 
