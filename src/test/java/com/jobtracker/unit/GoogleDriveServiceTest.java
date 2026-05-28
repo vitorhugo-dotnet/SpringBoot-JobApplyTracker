@@ -39,6 +39,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class GoogleDriveServiceTest {
 
+    private static final String TEST_SCOPES = "https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/documents.readonly";
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID CONNECTION_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
     private static final UUID RESUME_ID = UUID.fromString("00000000-0000-0000-0000-000000000003");
@@ -67,7 +68,8 @@ class GoogleDriveServiceTest {
                 "http://localhost:8080/api/v1/google-drive/oauth/callback",
                 "http://localhost:5173/settings/google-drive/callback",
                 "https://accounts.google.com/o/oauth2/v2/auth",
-                "https://oauth2.googleapis.com/token"
+                "https://oauth2.googleapis.com/token",
+                TEST_SCOPES
         );
         googleDriveService = new GoogleDriveService(
                 googleDriveApiClient,
