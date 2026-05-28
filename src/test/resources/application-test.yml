@@ -25,6 +25,8 @@ jwt:
   refresh-token-expiration-ms: 604800000
 
 app:
+  api:
+    base-url: https://jobapply-api.hugojava.dev
   frontend:
     reset-password-url: http://localhost:5173/reset-password
   security:
