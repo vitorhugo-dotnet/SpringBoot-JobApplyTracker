@@ -83,6 +83,28 @@ public class ResumeGenerationService {
     }
 
     @Transactional
+    public GeneratedResumeContentResponse getGeneratedResumeContent(UUID applicationId) {
+        UUID userId = securityUtils.getCurrentUserId();
+        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        JobApplication application = applicationRepository.findByIdAndUserId(applicationId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
+
+        if (!StringUtils.hasText(application.getDriveResumeFileId())) {
+            throw new BadRequestException("No generated resume found for this application");
+        }
+
+        String content = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), application.getDriveResumeFileId());
+        connectionRepository.save(connection);
+
+        return new GeneratedResumeContentResponse(
+                application.getId(),
+                application.getDriveResumeFileId(),
+                application.getDriveResumeFileName(),
+                content
+        );
+    }
+
+    @Transactional
     public ResumePlaceholderResponse generateTemplateResume(UUID applicationId, ResumePlaceholderRequest request) {
         UUID userId = securityUtils.getCurrentUserId();
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
@@ -261,5 +283,7 @@ public class ResumeGenerationService {
                 ? file.webViewLink()
                 : "https://docs.google.com/document/d/" + file.id() + "/edit";
     }
+
+    public record GeneratedResumeContentResponse(UUID applicationId, String resumeFileId, String fileName, String content) {}
 
 }
