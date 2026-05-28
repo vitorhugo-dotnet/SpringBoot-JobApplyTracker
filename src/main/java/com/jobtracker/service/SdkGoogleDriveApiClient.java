@@ -3,10 +3,7 @@ package com.jobtracker.service;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.ByteArrayContent;
 import com.google.api.services.docs.v1.Docs;
-import com.google.api.services.docs.v1.model.BatchUpdateDocumentRequest;
-import com.google.api.services.docs.v1.model.ReplaceAllTextRequest;
-import com.google.api.services.docs.v1.model.Request;
-import com.google.api.services.docs.v1.model.SubstringMatchCriteria;
+import com.google.api.services.docs.v1.model.*;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.File;
@@ -224,6 +221,9 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
     public String readGoogleDocText(String accessToken, String documentId) {
         return executeDocsOp(accessToken, "read document", docs -> {
             com.google.api.services.docs.v1.model.Document document = docs.documents().get(documentId).execute();
+
+            log.info("googleDocBody={}", document.getBody().toPrettyString());
+
             StringBuilder text = new StringBuilder();
             if (document.getBody() == null || document.getBody().getContent() == null) {
                 return "";
@@ -238,7 +238,7 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
                     }
                 });
             });
-            return text.toString();
+            return extractText(document.getBody().getContent());
         });
     }
 
@@ -362,5 +362,61 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
 
     private String toPlaceholderToken(String key) {
         return "{{" + key.trim() + "}}";
+    }
+
+    private String extractText(List<StructuralElement> elements) {
+        if (elements == null || elements.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        for (StructuralElement element : elements) {
+
+            if (element.getParagraph() != null) {
+                Paragraph paragraph = element.getParagraph();
+
+                if (paragraph.getElements() != null) {
+                    for (ParagraphElement pe : paragraph.getElements()) {
+
+                        TextRun textRun = pe.getTextRun();
+
+                        if (textRun != null && textRun.getContent() != null) {
+                            sb.append(textRun.getContent());
+                        }
+                    }
+                }
+
+                sb.append("\n");
+            }
+
+            if (element.getTable() != null) {
+                Table table = element.getTable();
+
+                if (table.getTableRows() != null) {
+                    for (TableRow row : table.getTableRows()) {
+
+                        if (row.getTableCells() != null) {
+                            for (TableCell cell : row.getTableCells()) {
+                                sb.append(extractText(cell.getContent()));
+                                sb.append(" ");
+                            }
+                        }
+                    }
+                }
+
+                sb.append("\n");
+            }
+
+            if (element.getTableOfContents() != null) {
+                sb.append(
+                        extractText(
+                                element.getTableOfContents().getContent()
+                        )
+                );
+            }
+        }
+
+        return sb.toString().trim();
     }
 }
