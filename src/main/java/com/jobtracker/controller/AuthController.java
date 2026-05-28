@@ -28,6 +28,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -41,7 +42,9 @@ public class AuthController {
 
     private static final String REFRESH_COOKIE_NAME = "refreshToken";
     private static final String REFRESH_COOKIE_PATH = "/api/v1/auth/refresh";
-    private static final long REFRESH_TOKEN_MAX_AGE_SECONDS = 7L * 24 * 60 * 60;
+
+    @Value("${jwt.refresh-token-expiration-ms}")
+    private long refreshTokenExpirationMs;
 
     private final AuthService authService;
     private final PasskeyAuthService passkeyAuthService;
@@ -68,7 +71,7 @@ public class AuthController {
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         response.addHeader(
                 HttpHeaders.SET_COOKIE,
-                buildRefreshTokenCookie(refreshToken, REFRESH_TOKEN_MAX_AGE_SECONDS).toString()
+                buildRefreshTokenCookie(refreshToken, refreshTokenExpirationMs / 1000).toString()
         );
     }
 
