@@ -35,6 +35,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ResumeGenerationTemplateFlowTest {
 
+    private static final String TEST_SCOPES = "https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/documents.readonly";
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID BASE_RESUME_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
     private static final UUID APPLICATION_ID = UUID.fromString("00000000-0000-0000-0000-000000000003");
@@ -49,7 +50,15 @@ class ResumeGenerationTemplateFlowTest {
     void generateResume_shouldReplaceStrictPlaceholdersFromProvidedValues() {
         ResumeGenerationService service = new ResumeGenerationService(
                 googleDriveApiClient,
-                new GoogleDriveProperties("client", "secret", "cb", "frontend", "auth", "token"),
+                new GoogleDriveProperties(
+                        "client",
+                        "secret",
+                        "cb",
+                        "frontend",
+                        "auth",
+                        "token",
+                        TEST_SCOPES
+                ),
                 connectionRepository,
                 baseResumeRepository,
                 applicationRepository,
