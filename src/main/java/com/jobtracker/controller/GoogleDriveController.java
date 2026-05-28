@@ -148,6 +148,27 @@ public class GoogleDriveController {
         return ResponseEntity.ok(resumeGenerationService.getBaseResumeContent(resumeId));
     }
 
+    @Operation(
+            summary = "Get plain text content of a generated resume",
+            description = "Returns plain text content extracted from the generated Google Docs resume. " +
+                    "This endpoint is intended for AI/tool consumption instead of binary file download.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Generated resume content retrieved"),
+                    @ApiResponse(responseCode = "404", description = "Application or generated resume not found")
+            }
+    )
+    @PreAuthorize("hasRole('BETA')")
+    @GetMapping("/applications/{applicationId}/generated-resumes/content")
+    public ResponseEntity<ResumeGenerationService.GeneratedResumeContentResponse> getGeneratedResumeContent(
+            @Parameter(description = "UUID of the application.",
+                    schema = @Schema(type = "string", format = "uuid"))
+            @PathVariable UUID applicationId) {
+
+        return ResponseEntity.ok(
+                resumeGenerationService.getGeneratedResumeContent(applicationId)
+        );
+    }
+
     @Operation(summary = "Download base resume as DOCX",
             responses = @ApiResponse(
                     responseCode = "200",
