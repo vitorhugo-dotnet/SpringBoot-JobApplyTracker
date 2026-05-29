@@ -77,6 +77,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                     return true;
                 }
+                log.debug("User JWT authentication failed: token invalid for email={}", userEmail);
+                return false;
             }
         } catch (Exception e) {
             // Log invalid user JWT at debug level; fall through to GPT token attempt
