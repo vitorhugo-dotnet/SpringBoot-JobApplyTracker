@@ -94,7 +94,7 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
         assertThat(jwt.getClaimAsString("scope")).contains("write:applications");
         assertThat(jwt.getClaimAsString("token_use")).isEqualTo("gpt_action_access");
 
-        mockMvc.perform(post("/api/v1/gpt/applications")
+        mockMvc.perform(post("/api/v1/applications")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -112,19 +112,15 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.vacancyName").value("GPT Backend Engineer"));
 
-        mockMvc.perform(get("/api/v1/gpt/profile")
+        mockMvc.perform(get("/api/v1/auth/me")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("gpt-user@example.com"));
 
-        mockMvc.perform(get("/api/v1/gpt/applications")
+        mockMvc.perform(get("/api/v1/applications")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1));
-
-        mockMvc.perform(get("/api/v1/gpt/metrics/summary")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-                .andExpect(status().isOk());
     }
 
     @Test
@@ -136,7 +132,7 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
                 "read:profile read:applications", pkcePair);
         String accessToken = exchangeToken(authorizationCode, pkcePair.verifier());
 
-        mockMvc.perform(post("/api/v1/gpt/applications")
+        mockMvc.perform(post("/api/v1/applications")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -163,9 +159,9 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("legacy-user@example.com"));
 
-        mockMvc.perform(get("/api/v1/gpt/profile")
+        mockMvc.perform(get("/api/v1/applications")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authResponse.accessToken()))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isOk());
     }
 
     @Test

@@ -41,11 +41,11 @@ class OpenApiDocumentationIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void gptActionsGroup_shouldContainOauthSchemeAndGptPaths() throws Exception {
+    void gptActionsGroup_shouldContainOauthSchemeAndExistingApiPaths() throws Exception {
         JsonNode openApi = fetchOpenApiGroup("gpt-actions");
 
-        assertThat(openApi.path("paths").has("/api/v1/gpt/profile")).isTrue();
-        assertThat(openApi.path("paths").has("/api/v1/gpt/applications")).isTrue();
+        assertThat(openApi.path("paths").has("/api/v1/auth/me")).isTrue();
+        assertThat(openApi.path("paths").has("/api/v1/applications")).isTrue();
         assertThat(openApi.path("paths").has("/oauth2/token")).isTrue();
         assertThat(openApi.at("/components/securitySchemes/gptOAuth/type").asText()).isEqualTo("oauth2");
         assertThat(openApi.at("/components/securitySchemes/gptOAuth/flows/authorizationCode/authorizationUrl").asText())

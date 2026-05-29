@@ -54,11 +54,21 @@ public class SecurityConfig {
                                 "/api/v1/auth/reset-password",
                                 "/api/v1/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/google-drive/oauth/callback").permitAll()
-                        .requestMatchers("/oauth2/authorize", "/oauth2/token").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Actuator is served on a dedicated management port (8081) that is never
                         // exposed to the host; security is enforced via Docker network isolation.
                         .requestMatchers("/actuator/**").permitAll()
+                        // GPT OAuth tokens (ROLE_GPT_CLIENT) may access these specific endpoints.
+                        // Method-level @PreAuthorize further enforces required scopes.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/me").hasAnyRole("USER", "GPT_CLIENT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/applications").hasAnyRole("USER", "GPT_CLIENT")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/applications").hasAnyRole("USER", "GPT_CLIENT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/applications/*").hasAnyRole("USER", "GPT_CLIENT")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/applications/*/status").hasAnyRole("USER", "GPT_CLIENT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/google-drive/status").hasAnyRole("USER", "GPT_CLIENT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/google-drive/base-resumes").hasAnyRole("USER", "GPT_CLIENT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/google-drive/base-resumes/*/content").hasAnyRole("USER", "GPT_CLIENT")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/google-drive/applications/*/generated-resumes/content").hasAnyRole("USER", "GPT_CLIENT")
                         // ROLE_USER endpoints: all remaining application APIs under /api/v1/**
                         // (including /api/v1/auth/me and /api/v1/auth/me/**).
                         .requestMatchers("/api/v1/**").hasRole("USER")
