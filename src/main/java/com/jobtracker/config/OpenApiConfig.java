@@ -80,7 +80,18 @@ public class OpenApiConfig {
                 .group("gpt-actions")
                 .displayName("GPT Actions API")
                 .packagesToScan(CONTROLLER_PACKAGE)
-                .pathsToMatch("/api/v1/gpt/**", "/oauth2/authorize", "/oauth2/token")
+                .pathsToMatch(
+                        "/oauth2/authorize",
+                        "/oauth2/token",
+                        "/api/v1/auth/me",
+                        "/api/v1/applications",
+                        "/api/v1/applications/{id}",
+                        "/api/v1/applications/{id}/status",
+                        "/api/v1/google-drive/status",
+                        "/api/v1/google-drive/base-resumes",
+                        "/api/v1/google-drive/base-resumes/{resumeId}/content",
+                        "/api/v1/google-drive/applications/{applicationId}/generated-resumes/content"
+                )
                 .build();
     }
 }

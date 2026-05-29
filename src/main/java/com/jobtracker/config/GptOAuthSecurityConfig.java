@@ -27,8 +27,6 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
-import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
-import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
 import org.springframework.security.web.SecurityFilterChain;
 
 import javax.crypto.SecretKey;
@@ -44,20 +42,14 @@ public class GptOAuthSecurityConfig {
 
     @Bean
     @Order(1)
-    public SecurityFilterChain gptOAuthSecurityFilterChain(HttpSecurity http,
-                                                           Converter<Jwt, ? extends AbstractAuthenticationToken> gptJwtAuthenticationConverter) throws Exception {
+    public SecurityFilterChain gptOAuthSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/oauth2/**", "/api/v1/gpt/**")
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/oauth2/**", "/api/v1/gpt/**"))
+                .securityMatcher("/oauth2/**")
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/oauth2/**"))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/oauth2/authorize", "/oauth2/token").permitAll()
-                        .requestMatchers("/api/v1/gpt/**").authenticated()
-                        .anyRequest().denyAll())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(gptJwtAuthenticationConverter)))
-                .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
-                        .accessDeniedHandler(new BearerTokenAccessDeniedHandler()));
+                        .anyRequest().denyAll());
 
         return http.build();
     }
