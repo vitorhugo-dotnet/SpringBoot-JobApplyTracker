@@ -85,7 +85,7 @@ public class GptOAuthController {
         String codeChallengeMethod = servletRequest.getParameter("code_challenge_method");
 
         if ("/authorize".equals(servletRequest.getServletPath()) && responseType != null && clientId != null
-                && redirectUri != null && codeChallenge != null && codeChallengeMethod != null) {
+                && redirectUri != null) {
             GptAuthorizationRequest request = new GptAuthorizationRequest(
                     responseType,
                     clientId,

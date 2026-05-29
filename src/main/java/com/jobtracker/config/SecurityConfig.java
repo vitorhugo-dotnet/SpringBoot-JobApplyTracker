@@ -54,6 +54,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/reset-password",
                                 "/api/v1/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/google-drive/oauth/callback").permitAll()
+                        .requestMatchers("/.well-known/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Actuator is served on a dedicated management port (8081) that is never
                         // exposed to the host; security is enforced via Docker network isolation.

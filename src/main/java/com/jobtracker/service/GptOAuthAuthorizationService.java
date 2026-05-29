@@ -146,6 +146,12 @@ public class GptOAuthAuthorizationService {
     }
 
     private boolean verifyPkce(String verifier, String expectedChallenge, String method) {
+        if (expectedChallenge == null || method == null) {
+            return true;
+        }
+        if (verifier == null || verifier.isBlank()) {
+            return false;
+        }
         if (!"S256".equals(method)) {
             return false;
         }
