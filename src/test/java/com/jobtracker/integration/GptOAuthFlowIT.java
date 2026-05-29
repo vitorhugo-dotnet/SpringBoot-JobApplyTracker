@@ -38,6 +38,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class GptOAuthFlowIT extends AbstractIntegrationTest {
@@ -124,6 +125,46 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void oauthCodeFlow_withoutPkce_shouldIssueScopedTokenAndAllowGptEndpoints() throws Exception {
+        registerUser("gpt-user-no-pkce@example.com", "pass1234");
+
+        String authorizationCode = authorize("gpt-user-no-pkce@example.com", "pass1234",
+                "read:profile read:applications", null);
+        String accessToken = exchangeToken(authorizationCode, null);
+
+        mockMvc.perform(get("/api/v1/auth/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("gpt-user-no-pkce@example.com"));
+    }
+
+    @Test
+    void oauthAuthorizeGet_withoutPkce_shouldReturnConsentPage() throws Exception {
+        mockMvc.perform(get("/oauth2/authorize")
+                        .param("response_type", "code")
+                        .param("client_id", CLIENT_ID)
+                        .param("redirect_uri", REDIRECT_URI)
+                        .param("scope", "read:profile")
+                        .param("state", "chatgpt-state"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Authorize GPT Action")));
+    }
+
+    @Test
+    void openidDiscoveryEndpoint_shouldBePublic() throws Exception {
+        mockMvc.perform(get("/.well-known/openid-configuration"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authorization_endpoint").value("https://jobapply-api.hugojava.dev/oauth2/authorize"))
+                .andExpect(jsonPath("$.token_endpoint").value("https://jobapply-api.hugojava.dev/oauth2/token"))
+                .andExpect(jsonPath("$.jwks_uri").value("https://jobapply-api.hugojava.dev/oauth2/jwks"));
+
+        mockMvc.perform(get("/oauth2/jwks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.keys").isArray());
+    }
+
+    @Test
     void readOnlyGptToken_shouldRejectWriteEndpoints() throws Exception {
         registerUser("readonly-gpt@example.com", "pass1234");
         PkcePair pkcePair = generatePkcePair();
@@ -183,18 +224,22 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
     }
 
     private String authorize(String email, String password, String scope, PkcePair pkcePair) throws Exception {
-        MvcResult result = mockMvc.perform(post("/oauth2/authorize")
-                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                        .param("response_type", "code")
-                        .param("client_id", CLIENT_ID)
-                        .param("redirect_uri", REDIRECT_URI)
-                        .param("scope", scope)
-                        .param("state", "test-state")
-                        .param("code_challenge", pkcePair.challenge())
-                        .param("code_challenge_method", "S256")
-                        .param("email", email)
-                        .param("password", password)
-                        .param("approve", "true"))
+        var request = post("/oauth2/authorize")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .param("response_type", "code")
+                .param("client_id", CLIENT_ID)
+                .param("redirect_uri", REDIRECT_URI)
+                .param("scope", scope)
+                .param("state", "test-state")
+                .param("email", email)
+                .param("password", password)
+                .param("approve", "true");
+        if (pkcePair != null) {
+            request.param("code_challenge", pkcePair.challenge());
+            request.param("code_challenge_method", "S256");
+        }
+
+        MvcResult result = mockMvc.perform(request)
                 .andExpect(status().isFound())
                 .andExpect(redirectedUrlPattern(REDIRECT_URI + "?*"))
                 .andReturn();
@@ -211,13 +256,17 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
     private String exchangeToken(String authorizationCode, String verifier) throws Exception {
         String basicAuth = Base64.getEncoder().encodeToString((CLIENT_ID + ":" + CLIENT_SECRET).getBytes(StandardCharsets.UTF_8));
 
-        MvcResult result = mockMvc.perform(post("/oauth2/token")
-                        .header(HttpHeaders.AUTHORIZATION, "Basic " + basicAuth)
-                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                        .param("grant_type", "authorization_code")
-                        .param("code", authorizationCode)
-                        .param("redirect_uri", REDIRECT_URI)
-                        .param("code_verifier", verifier))
+        var request = post("/oauth2/token")
+                .header(HttpHeaders.AUTHORIZATION, "Basic " + basicAuth)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .param("grant_type", "authorization_code")
+                .param("code", authorizationCode)
+                .param("redirect_uri", REDIRECT_URI);
+        if (verifier != null) {
+            request.param("code_verifier", verifier);
+        }
+
+        MvcResult result = mockMvc.perform(request)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token_type").value("Bearer"))
                 .andReturn();

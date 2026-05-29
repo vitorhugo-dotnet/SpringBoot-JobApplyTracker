@@ -34,8 +34,13 @@ public class GptOAuthClientService {
         if (!properties.supportsRedirectUri(request.redirect_uri())) {
             throw new BadRequestException("redirect_uri is not allowed");
         }
-        if (!"S256".equals(request.code_challenge_method())) {
-            throw new BadRequestException("Only S256 PKCE is supported");
+        boolean hasCodeChallenge = hasText(request.code_challenge());
+        boolean hasCodeChallengeMethod = hasText(request.code_challenge_method());
+        if (hasCodeChallenge != hasCodeChallengeMethod) {
+            throw new BadRequestException("code_challenge and code_challenge_method must be provided together");
+        }
+        if (hasCodeChallengeMethod && !"S256".equals(request.code_challenge_method())) {
+            throw new BadRequestException("Only S256 PKCE is supported when PKCE is used");
         }
 
         Set<String> requestedScopes = parseScopes(request.scope());
@@ -51,8 +56,8 @@ public class GptOAuthClientService {
                 request.redirect_uri(),
                 requestedScopes,
                 request.state(),
-                request.code_challenge(),
-                request.code_challenge_method()
+                hasCodeChallenge ? request.code_challenge() : null,
+                hasCodeChallengeMethod ? request.code_challenge_method() : null
         );
     }
 

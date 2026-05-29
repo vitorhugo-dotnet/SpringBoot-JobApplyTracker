@@ -12,9 +12,7 @@ public record GptAuthorizationLoginRequest(
         String redirect_uri,
         String scope,
         String state,
-        @NotBlank(message = "code_challenge is required")
         String code_challenge,
-        @NotBlank(message = "code_challenge_method is required")
         String code_challenge_method,
         @Email(message = "email must be valid")
         @NotBlank(message = "email is required")

@@ -48,7 +48,7 @@ public class GptOAuthSecurityConfig {
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/oauth2/**"))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/oauth2/authorize", "/oauth2/token").permitAll()
+                        .requestMatchers("/oauth2/authorize", "/oauth2/token", "/oauth2/jwks").permitAll()
                         .anyRequest().denyAll());
 
         return http.build();

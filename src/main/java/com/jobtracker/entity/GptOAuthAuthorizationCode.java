@@ -43,10 +43,10 @@ public class GptOAuthAuthorizationCode {
     @Column(name = "code_hash", nullable = false, length = 128)
     private String codeHash;
 
-    @Column(name = "code_challenge", nullable = false, length = 255)
+    @Column(name = "code_challenge", length = 255)
     private String codeChallenge;
 
-    @Column(name = "code_challenge_method", nullable = false, length = 20)
+    @Column(name = "code_challenge_method", length = 20)
     private String codeChallengeMethod;
 
     @Column(name = "expires_at", nullable = false)

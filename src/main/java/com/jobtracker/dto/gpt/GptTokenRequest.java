@@ -9,7 +9,6 @@ public record GptTokenRequest(
         String code,
         @NotBlank(message = "redirect_uri is required")
         String redirect_uri,
-        @NotBlank(message = "code_verifier is required")
         String code_verifier,
         String client_id,
         String client_secret
