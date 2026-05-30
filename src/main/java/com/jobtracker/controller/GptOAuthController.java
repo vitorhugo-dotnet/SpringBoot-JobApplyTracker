@@ -1,6 +1,5 @@
 package com.jobtracker.controller;
 
-import com.google.gson.Gson;
 import com.jobtracker.dto.gpt.GptAuthorizationLoginRequest;
 import com.jobtracker.dto.gpt.GptAuthorizationRequest;
 import com.jobtracker.dto.gpt.GptTokenRequest;
@@ -18,11 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 @Controller
 @RequestMapping("/oauth2")
@@ -44,7 +39,6 @@ public class GptOAuthController {
     @ResponseBody
     public ResponseEntity<String> authorize(@Valid GptAuthorizationRequest request) {
         authorizationService.validateAuthorizationRequest(request);
-        log.info("Rendering GPT Action authorization page for {}", new Gson().toJson(request));
         return ResponseEntity.ok()
                 .contentType(pageRenderer.mediaType())
                 .body(pageRenderer.render(request, null));
@@ -53,24 +47,27 @@ public class GptOAuthController {
     @PostMapping(value = "/authorize", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<Void> authorizeLogin(@Valid GptAuthorizationLoginRequest request) {
         String redirectUri = authorizationService.authorize(request);
-        log.info("User authorized GPT Action access for object: {}, redirecting to {}", new Gson().toJson(request), redirectUri);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, redirectUri)
                 .build();
     }
 
-    @Operation(summary = "Exchange an authorization code for a GPT Action access token")
-    @PostMapping(value = "/token", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    @PostMapping(
+            value = "/token",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
     @ResponseBody
-    public ResponseEntity<GptTokenResponse> token(@Valid GptTokenRequest request,
-                                                  @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
-                                                  String authorizationHeader) {
+    public ResponseEntity<GptTokenResponse> token(
+            @ModelAttribute @Valid GptTokenRequest request,
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
+
         GptTokenResponse response = authorizationService.exchangeToken(request, authorizationHeader);
-        log.info("Issued GPT Action access token for object: {}", new Gson().toJson(request));
+        log.info("Issued GPT Action access token for access_token={}, scope={}", response.access_token(), response.scope());
+
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.PRAGMA, "no-cache")
                 .body(response);
     }
-
 }
