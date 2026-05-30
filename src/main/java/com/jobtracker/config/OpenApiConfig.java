@@ -92,6 +92,22 @@ public class OpenApiConfig {
                         "/api/v1/google-drive/base-resumes/{resumeId}/content",
                         "/api/v1/google-drive/applications/{applicationId}/generated-resumes/content"
                 )
+                .addOpenApiCustomizer(openApi -> {
+                    var authMe = openApi.getPaths().get("/api/v1/auth/me");
+                    if (authMe != null) {
+                        authMe.setPut(null);
+                    }
+
+                    var baseResume = openApi.getPaths().get("/api/v1/google-drive/base-resumes");
+                    if (baseResume != null) {
+                        baseResume.put(null);
+                    }
+
+                    var application = openApi.getPaths().get("/api/v1/applications/{id}");
+                    if (application != null) {
+                        application.delete(null);
+                    }
+                })
                 .build();
     }
 }
