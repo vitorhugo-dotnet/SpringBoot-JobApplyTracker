@@ -2,6 +2,7 @@ package com.jobtracker.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.jobtracker.dto.gpt.GptAuthorizationLoginRequest;
 import com.jobtracker.dto.gpt.GptAuthorizationRequest;
 import com.jobtracker.dto.gpt.GptTokenRequest;
@@ -13,6 +14,8 @@ import com.jobtracker.service.GptOAuthAuthorizationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -30,6 +33,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @Tag(name = "GPT OAuth", description = "OAuth 2.0 Authorization Code with PKCE endpoints for GPT Actions")
 public class GptOAuthController {
 
+    private static final Logger log = LoggerFactory.getLogger(GptOAuthController.class);
     private final GptOAuthAuthorizationService authorizationService;
     private final GptAuthorizationPageRenderer pageRenderer;
     private final ObjectMapper objectMapper;
@@ -67,6 +71,7 @@ public class GptOAuthController {
                                                   @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
                                                   String authorizationHeader) {
         GptTokenResponse response = authorizationService.exchangeToken(request, authorizationHeader);
+        log.info("Issued GPT Action access token for object: {}", new Gson().toJson(request));
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.PRAGMA, "no-cache")
