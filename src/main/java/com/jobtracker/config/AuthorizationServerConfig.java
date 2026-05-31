@@ -1,7 +1,5 @@
 package com.jobtracker.config;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtracker.repository.UserRepository;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -17,7 +15,6 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcOperations;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -39,6 +36,7 @@ import org.springframework.security.oauth2.server.authorization.JdbcOAuth2Author
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
@@ -55,7 +53,6 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.UUID;
 
 @Configuration
@@ -165,8 +162,8 @@ public class AuthorizationServerConfig {
     public ApplicationRunner registeredClientBootstrap(
             GptOAuthProperties properties,
             RegisteredClientRepository registeredClientRepository,
-            JdbcTemplate jdbcTemplate,
-            ObjectMapper objectMapper) {
+            JdbcOperations jdbcOperations,
+            PasswordEncoder passwordEncoder) {
         return args -> {
             if (!properties.isConfigured()) {
                 return;
@@ -175,7 +172,7 @@ public class AuthorizationServerConfig {
             RegisteredClient registeredClient = RegisteredClient.withId(stableId(properties.getClientId()))
                     .clientId(properties.getClientId())
                     .clientIdIssuedAt(Instant.now())
-                    .clientSecret("{noop}" + properties.getClientSecret())
+                    .clientSecret(passwordEncoder.encode(properties.getClientSecret()))
                     .clientName("OpenAI GPT Actions")
                     .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                     .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
@@ -201,26 +198,10 @@ public class AuthorizationServerConfig {
                 return;
             }
 
-            jdbcTemplate.update(
-                    """
-                    UPDATE oauth2_registered_client
-                    SET client_id_issued_at = ?, client_secret = ?, client_name = ?,
-                        client_authentication_methods = ?, authorization_grant_types = ?,
-                        redirect_uris = ?, post_logout_redirect_uris = ?, scopes = ?,
-                        client_settings = ?, token_settings = ?
-                    WHERE id = ?
-                    """,
-                    java.sql.Timestamp.from(registeredClient.getClientIdIssuedAt()),
-                    registeredClient.getClientSecret(),
-                    registeredClient.getClientName(),
-                    String.join(",", registeredClient.getClientAuthenticationMethods().stream().map(ClientAuthenticationMethod::getValue).toList()),
-                    String.join(",", registeredClient.getAuthorizationGrantTypes().stream().map(AuthorizationGrantType::getValue).toList()),
-                    String.join(",", registeredClient.getRedirectUris()),
-                    String.join(",", registeredClient.getPostLogoutRedirectUris()),
-                    String.join(",", registeredClient.getScopes()),
-                    writeJson(objectMapper, registeredClient.getClientSettings().getSettings()),
-                    writeJson(objectMapper, registeredClient.getTokenSettings().getSettings()),
-                    existing.getId());
+            if (registeredClientRequiresRefresh(existing, properties, passwordEncoder)) {
+                jdbcOperations.update("DELETE FROM oauth2_registered_client WHERE id = ?", existing.getId());
+                registeredClientRepository.save(registeredClient);
+            }
         };
     }
 
@@ -228,11 +209,17 @@ public class AuthorizationServerConfig {
         return UUID.nameUUIDFromBytes(clientId.getBytes(StandardCharsets.UTF_8)).toString();
     }
 
-    private static String writeJson(ObjectMapper objectMapper, Map<String, Object> value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Unable to serialize authorization server settings", ex);
-        }
+    private static boolean registeredClientRequiresRefresh(
+            RegisteredClient existing,
+            GptOAuthProperties properties,
+            PasswordEncoder passwordEncoder) {
+        return !passwordEncoder.matches(properties.getClientSecret(), existing.getClientSecret())
+                || !new LinkedHashSet<>(existing.getRedirectUris()).equals(new LinkedHashSet<>(properties.getRedirectUris()))
+                || !new LinkedHashSet<>(existing.getScopes()).equals(new LinkedHashSet<>(properties.getScopes()))
+                || !existing.getClientAuthenticationMethods().contains(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                || !existing.getClientAuthenticationMethods().contains(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+                || !existing.getAuthorizationGrantTypes().contains(AuthorizationGrantType.AUTHORIZATION_CODE)
+                || !existing.getAuthorizationGrantTypes().contains(AuthorizationGrantType.REFRESH_TOKEN)
+                || !existing.getClientSettings().isRequireProofKey();
     }
 }

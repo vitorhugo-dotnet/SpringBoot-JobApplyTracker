@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -32,7 +31,7 @@ import java.security.MessageDigest;
 import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -90,7 +89,7 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
         mockMvc.perform(get("/oauth2/jwks"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.keys").isArray())
-                .andExpect(jsonPath("$.keys[0].alg").value("RS256"));
+                .andExpect(jsonPath("$.keys[0].kty").value("RSA"));
     }
 
     @Test
@@ -230,23 +229,15 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
     }
 
     private String authorizeWithPkce(String email, String password, String scope, PkcePair pkcePair) throws Exception {
-        MockHttpSession session = (MockHttpSession) mockMvc.perform(formLogin()
-                        .user("username", email)
-                        .password("password", password))
-                .andExpect(status().is3xxRedirection())
-                .andReturn()
-                .getRequest()
-                .getSession(false);
-
         MvcResult result = mockMvc.perform(get("/oauth2/authorize")
-                        .session(session)
-                        .param("response_type", "code")
-                        .param("client_id", CLIENT_ID)
-                        .param("redirect_uri", REDIRECT_URI)
-                        .param("scope", scope)
-                        .param("state", "test-state")
-                        .param("code_challenge", pkcePair.challenge())
-                        .param("code_challenge_method", "S256"))
+                        .with(user(email).roles("USER"))
+                        .queryParam("response_type", "code")
+                        .queryParam("client_id", CLIENT_ID)
+                        .queryParam("redirect_uri", REDIRECT_URI)
+                        .queryParam("scope", scope)
+                        .queryParam("state", "test-state")
+                        .queryParam("code_challenge", pkcePair.challenge())
+                        .queryParam("code_challenge_method", "S256"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrlPattern(REDIRECT_URI + "?*"))
                 .andReturn();

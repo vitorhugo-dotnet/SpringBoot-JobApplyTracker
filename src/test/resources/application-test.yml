@@ -1,4 +1,9 @@
 spring:
+  autoconfigure:
+    exclude:
+      - io.github.resilience4j.springboot3.ratelimiter.autoconfigure.RateLimiterAutoConfiguration
+      - io.github.resilience4j.springboot3.ratelimiter.autoconfigure.RateLimiterMetricsAutoConfiguration
+      - io.github.resilience4j.springboot3.ratelimiter.autoconfigure.RateLimitersHealthIndicatorAutoConfiguration
   threads:
     virtual:
       enabled: true
