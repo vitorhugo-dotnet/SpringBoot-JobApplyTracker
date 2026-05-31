@@ -61,7 +61,7 @@ public class GptOAuthController {
     @ResponseBody
     public ResponseEntity<GptTokenResponse> token(
             @ModelAttribute @Valid GptTokenRequest request,
-            @Parameter(hidden = true) @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader) {
 
         GptTokenResponse response = authorizationService.exchangeToken(request, authorizationHeader);
         log.info("Issued GPT Action access token for access_token={}, scope={}", response.access_token(), response.scope());
