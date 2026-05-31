@@ -1,6 +1,7 @@
 package com.jobtracker.config;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -80,7 +81,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/google-drive/applications/*/generated-resumes/content").hasAnyRole("USER", "GPT_CLIENT")
                         .requestMatchers("/api/v1/**").hasRole("USER")
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.authenticationManagerResolver(apiAuthenticationManagerResolver))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN)))
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN))
+                        .authenticationManagerResolver(apiAuthenticationManagerResolver))
                 .addFilterBefore(requestLoggingFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
