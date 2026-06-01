@@ -96,6 +96,9 @@ app:
     authorization-code-expiration-seconds: ${OPENAI_GPT_AUTHORIZATION_CODE_EXPIRATION_SECONDS:300}
     access-token-expiration-seconds: ${OPENAI_GPT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
     refresh-token-expiration-seconds: ${OPENAI_GPT_REFRESH_TOKEN_EXPIRATION_SECONDS:2592000}
+  gpt-fallback-auth:
+    enabled: ${GPT_FALLBACK_AUTH_ENABLED:false}
+    token: ${GPT_FALLBACK_AUTH_TOKEN:}
   webauthn:
     rp-id: ${APP_WEBAUTHN_RP_ID:localhost}
     rp-name: ${APP_WEBAUTHN_RP_NAME:JobApplyTracker}
