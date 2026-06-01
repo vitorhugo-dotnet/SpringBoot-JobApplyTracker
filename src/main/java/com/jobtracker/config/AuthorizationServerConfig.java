@@ -19,8 +19,9 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
@@ -32,8 +33,6 @@ import org.springframework.security.oauth2.server.authorization.config.annotatio
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
-import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService;
-import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -198,7 +197,7 @@ public class AuthorizationServerConfig {
                 return;
             }
 
-            if (registeredClientRequiresRefresh(existing, properties, passwordEncoder)) {
+            if (registeredClientRequiresRefresh(existing, registeredClient, passwordEncoder, properties)) {
                 jdbcOperations.update("DELETE FROM oauth2_registered_client WHERE id = ?", existing.getId());
                 registeredClientRepository.save(registeredClient);
             }
@@ -211,18 +210,17 @@ public class AuthorizationServerConfig {
 
     private static boolean registeredClientRequiresRefresh(
             RegisteredClient existing,
-            GptOAuthProperties properties,
-            PasswordEncoder passwordEncoder) {
+            RegisteredClient desiredClient,
+            PasswordEncoder passwordEncoder,
+            GptOAuthProperties properties) {
         return !passwordEncoder.matches(properties.getClientSecret(), existing.getClientSecret())
-                || !new LinkedHashSet<>(existing.getRedirectUris()).equals(new LinkedHashSet<>(properties.getRedirectUris()))
-                || !new LinkedHashSet<>(existing.getScopes()).equals(new LinkedHashSet<>(properties.getScopes()))
+                || !new LinkedHashSet<>(existing.getRedirectUris()).equals(new LinkedHashSet<>(desiredClient.getRedirectUris()))
+                || !new LinkedHashSet<>(existing.getScopes()).equals(new LinkedHashSet<>(desiredClient.getScopes()))
                 || !existing.getClientAuthenticationMethods().contains(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 || !existing.getClientAuthenticationMethods().contains(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                 || !existing.getAuthorizationGrantTypes().contains(AuthorizationGrantType.AUTHORIZATION_CODE)
                 || !existing.getAuthorizationGrantTypes().contains(AuthorizationGrantType.REFRESH_TOKEN)
-                || existing.getClientSettings().isRequireProofKey()
-                    != registeredClient.getClientSettings().isRequireProofKey()
-                || existing.getClientSettings().isRequireAuthorizationConsent()
-                    != registeredClient.getClientSettings().isRequireAuthorizationConsent();
+                || existing.getClientSettings().isRequireProofKey() != desiredClient.getClientSettings().isRequireProofKey()
+                || existing.getClientSettings().isRequireAuthorizationConsent() != desiredClient.getClientSettings().isRequireAuthorizationConsent();
     }
 }
