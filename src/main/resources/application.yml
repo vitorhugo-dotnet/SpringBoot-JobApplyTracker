@@ -56,15 +56,9 @@ server:
 
 logging:
   level:
-    org.springframework.security: TRACE
-    org.springframework.security.web.FilterChainProxy: TRACE
-
-    org.springframework.security.oauth2: TRACE
     org.springframework.security.oauth2.server.authorization: TRACE
-
-    org.springframework.web: DEBUG
-
-    com.jobtracker: DEBUG
+    org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationEndpointFilter: TRACE
+    org.springframework.security.oauth2.server.authorization.authentication: TRACE
 
 jwt:
   secret: ${JWT_SECRET:ThisIsAVeryLongSecretKeyForJWTTokensAndItMustBeAtLeast256BitsLong}
