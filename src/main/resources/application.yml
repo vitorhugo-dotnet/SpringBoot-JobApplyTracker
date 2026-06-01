@@ -57,6 +57,7 @@ server:
 logging:
   level:
     org.springframework.security.oauth2.server.authorization: TRACE
+    org.springframework.security.web.access: TRACE
     org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationEndpointFilter: TRACE
     org.springframework.security.oauth2.server.authorization.authentication: TRACE
 
