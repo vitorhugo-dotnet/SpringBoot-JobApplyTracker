@@ -213,6 +213,8 @@ public class AuthorizationServerConfig {
             RegisteredClient desiredClient,
             PasswordEncoder passwordEncoder,
             GptOAuthProperties properties) {
+                log.info("CLIENT REDIRECTS: {}", registeredClient.getRedirectUris());
+                log.info("CLIENT SETTINGS: {}", registeredClient.getClientSettings());
         return !passwordEncoder.matches(properties.getClientSecret(), existing.getClientSecret())
                 || !new LinkedHashSet<>(existing.getRedirectUris()).equals(new LinkedHashSet<>(desiredClient.getRedirectUris()))
                 || !new LinkedHashSet<>(existing.getScopes()).equals(new LinkedHashSet<>(desiredClient.getScopes()))
