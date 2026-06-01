@@ -182,7 +182,7 @@ public class AuthorizationServerConfig {
                     .scopes(scopes -> scopes.addAll(properties.getScopes()))
                     .clientSettings(ClientSettings.builder()
                             .requireAuthorizationConsent(false)
-                            .requireProofKey(true)
+                            .requireProofKey(false)
                             .build())
                     .tokenSettings(TokenSettings.builder()
                             .authorizationCodeTimeToLive(properties.getAuthorizationCodeTimeToLive())
