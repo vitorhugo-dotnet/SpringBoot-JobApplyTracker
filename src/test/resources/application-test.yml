@@ -50,6 +50,9 @@ app:
     authorization-code-expiration-seconds: 300
     access-token-expiration-seconds: 900
     refresh-token-expiration-seconds: 2592000
+  gpt-fallback-auth:
+    enabled: false
+    token: ""
   webauthn:
     rp-id: localhost
     rp-name: JobApplyTracker Test

@@ -499,6 +499,8 @@ If `APP_SEED_ENABLED=true` and `APP_SEED_USER_EMAIL` is not provided (or the use
 | `OPENAI_GPT_CLIENT_SECRET` | *(empty)* | OAuth client secret for GPT Actions |
 | `OPENAI_GPT_REDIRECT_URIS` | *(empty)* | Comma-separated GPT Action redirect URIs |
 | `OPENAI_GPT_SCOPES` | `read:profile,read:applications,write:applications,read:resume,read:google-drive,read:metrics` | Allowed GPT Action scopes |
+| `GPT_FALLBACK_AUTH_ENABLED` | `false` | Enables the temporary static bearer fallback |
+| `GPT_FALLBACK_AUTH_TOKEN` | *(empty)* | Static bearer token used when fallback auth is enabled |
 | `RATE_LIMIT_AUTH_LOGIN_LIMIT_FOR_PERIOD` | `10` | Max login requests allowed per refresh period |
 | `RATE_LIMIT_AUTH_LOGIN_REFRESH_PERIOD` | `1m` | Window used by the login rate limiter |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP gRPC endpoint (Jaeger/OpenTelemetry collector) |
