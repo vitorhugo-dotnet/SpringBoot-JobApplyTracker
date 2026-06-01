@@ -218,6 +218,15 @@ The API will be available at `http://localhost:8080`.
 
 ### With Maven (requires a running MariaDB)
 
+The GPT fallback auth is optional. When enabled, it authenticates requests with a static bearer token and maps them to a configurable account.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `APP_GPT_FALLBACK_AUTH_ENABLED` | No | Enables the GPT fallback auth filter |
+| `APP_GPT_FALLBACK_AUTH_TOKEN` | No | Static bearer token accepted by the fallback flow |
+| `APP_GPT_FALLBACK_AUTH_ACCOUNT_EMAIL` | No | Email of the account used by the fallback flow |
+| `APP_GPT_FALLBACK_AUTH_ACCOUNT_NAME` | No | Display name used when the fallback user is created |
+
 ```bash
 export DB_URL=jdbc:mariadb://localhost:3306/jobtracker?createDatabaseIfNotExist=true
 export DB_USERNAME=jobtracker
@@ -231,6 +240,10 @@ export OPENAI_GPT_CLIENT_ID=your-openai-gpt-client-id
 export OPENAI_GPT_CLIENT_SECRET=your-openai-gpt-client-secret
 export OPENAI_GPT_REDIRECT_URIS=https://chat.openai.com/aip/default/callback
 export OPENAI_GPT_SCOPES=read:profile,read:applications,write:applications,read:resume,read:google-drive,read:metrics
+export APP_GPT_FALLBACK_AUTH_ENABLED=true
+export APP_GPT_FALLBACK_AUTH_TOKEN=your-static-fallback-token
+export APP_GPT_FALLBACK_AUTH_ACCOUNT_EMAIL=hugo@seudominio.com
+export APP_GPT_FALLBACK_AUTH_ACCOUNT_NAME=Hugo
 mvn spring-boot:run
 ```
 
@@ -287,260 +300,4 @@ When the frontend later calls `POST /api/v1/google-drive/applications/{applicati
 
 1. Backend verifies the current user owns the application.
 2. Backend refreshes the user's Google access token if needed.
-3. Backend verifies the configured root folder still exists and is a folder.
-4. Backend finds or creates a vacancy subfolder under that root folder using the application identity.
-5. Backend copies the selected base Google Doc into that subfolder.
-6. Backend renames the copy with an `APP-<application-uuid>` prefix plus vacancy context.
-7. Backend returns a Google Docs web URL for the copied file.
-
-### Google Drive request/response shapes
-
-`POST /api/v1/google-drive/oauth/start`
-
-```json
-{}
-```
-
-Response:
-
-```json
-{
-  "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth?...",
-  "state": "generated-state",
-  "redirectUri": "http://localhost:8080/api/v1/google-drive/oauth/callback",
-  "scopes": [
-    "https://www.googleapis.com/auth/drive"
-  ]
-}
-```
-
-## GPT Actions OAuth integration
-
-This backend now exposes a dedicated OAuth 2.0 Authorization Code + PKCE flow for GPT Actions without changing the existing JWT login flow for human users. GPT-issued access tokens are scoped, bearer-only, and isolated to `/api/v1/gpt/**`.
-
-### Required environment variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_GPT_CLIENT_ID` | Yes | OAuth client ID configured for the GPT Action |
-| `OPENAI_GPT_CLIENT_SECRET` | Yes | OAuth client secret configured for the GPT Action |
-| `OPENAI_GPT_REDIRECT_URIS` | Yes | Comma-separated list of allowed GPT Action redirect URIs |
-| `OPENAI_GPT_SCOPES` | No | Comma-separated allowed GPT scopes; defaults to the built-in GPT scopes |
-
-### Supported GPT scopes
-
-- `read:profile`
-- `read:applications`
-- `write:applications`
-- `read:resume`
-- `read:google-drive`
-- `read:metrics`
-
-### OAuth endpoints
-
-- Authorization endpoint: `GET/POST /oauth2/authorize`
-- Token endpoint: `POST /oauth2/token`
-
-### GPT Action setup steps
-
-1. Create or update your GPT Action OAuth client with the backend base URL.
-2. Register the same callback URL in `OPENAI_GPT_REDIRECT_URIS`.
-3. Configure the client ID and client secret with `OPENAI_GPT_CLIENT_ID` and `OPENAI_GPT_CLIENT_SECRET`.
-4. Set the action scopes to the minimum required set from `OPENAI_GPT_SCOPES`.
-5. In the GPT Action OAuth settings, use:
-   - Authorization URL: `https://<your-api-host>/oauth2/authorize`
-   - Token URL: `https://<your-api-host>/oauth2/token`
-6. After OAuth succeeds, call the GPT-friendly endpoints under `/api/v1/gpt/**`.
-
-### GPT-friendly endpoints
-
-- `GET /api/v1/gpt/profile`
-- `GET /api/v1/gpt/applications`
-- `GET /api/v1/gpt/applications/{id}`
-- `POST /api/v1/gpt/applications`
-- `PATCH /api/v1/gpt/applications/{id}/status`
-- `GET /api/v1/gpt/resumes/base`
-- `GET /api/v1/gpt/resumes/base/{resumeId}/content`
-- `GET /api/v1/gpt/resumes/generated/{applicationId}/content`
-- `GET /api/v1/gpt/google-drive/status`
-- `GET /api/v1/gpt/metrics/summary`
-
-Google Drive and resume GPT endpoints still enforce the user's existing `BETA` role in addition to the new OAuth scopes, so the GPT flow does not bypass the repository's current authorization rules.
-
-`GET /api/v1/google-drive/status`
-
-```json
-{
-  "configured": true,
-  "connected": true,
-  "googleEmail": "user@gmail.com",
-  "googleDisplayName": "User Name",
-  "googleAccountId": "permission-id",
-  "rootFolderId": "drive-folder-id",
-  "rootFolderName": "Job Tracker Root",
-  "connectedAt": "2026-05-05T12:00:00",
-  "baseResumes": [
-    {
-      "id": "uuid",
-      "googleFileId": "google-doc-id",
-      "documentName": "Resume Base",
-      "webViewLink": "https://docs.google.com/document/d/google-doc-id/edit",
-      "createdAt": "2026-05-05T12:05:00"
-    }
-  ]
-}
-```
-
-`PUT /api/v1/google-drive/root-folder`
-
-```json
-{
-  "folderIdOrUrl": "https://drive.google.com/drive/folders/drive-folder-id"
-}
-```
-
-`POST /api/v1/google-drive/base-resumes`
-
-```json
-{
-  "documentIdOrUrl": "https://docs.google.com/document/d/google-doc-id/edit"
-}
-```
-
-`POST /api/v1/google-drive/applications/{applicationId}/resume-copies`
-
-```json
-{
-  "baseResumeId": "base-resume-uuid"
-}
-```
-
-Response:
-
-```json
-{
-  "applicationId": "application-uuid",
-  "baseResumeId": "base-resume-uuid",
-  "copiedFileId": "copied-google-doc-id",
-  "copiedFileName": "APP-application-uuid - Backend Engineer - Resume Base",
-  "documentWebViewLink": "https://docs.google.com/document/d/copied-google-doc-id/edit",
-  "vacancyFolderId": "vacancy-folder-id",
-  "vacancyFolderName": "Backend Engineer - APP-application-uuid",
-  "vacancyFolderWebViewLink": "https://drive.google.com/drive/folders/vacancy-folder-id"
-}
-```
-
-## Running Tests
-
-```bash
-# All tests
-mvn verify
-
-# Unit tests only
-mvn test -Dtest="com.jobtracker.unit.*"
-
-# Integration tests only
-mvn test -Dtest="com.jobtracker.integration.*"
-
-# E2E tests only
-mvn test -Dtest="com.jobtracker.e2e.*"
-```
-
-> **Note:** Integration and E2E tests require Docker to be running (Testcontainers pulls a MariaDB image automatically).
-
-## Seed Fake Data
-
-This project includes a startup seeder that can generate fake job applications using the Java library `net.datafaker:datafaker`.
-
-The seeder is disabled by default and only runs when explicitly enabled.
-
-Required parameters:
-
-- `APP_SEED_ENABLED=true`
-- `APP_SEED_USER_EMAIL=<existing user email>`
-
-Optional:
-
-- `APP_SEED_COUNT=1000` (default is `1000`)
-
-Example with Maven:
-
-```bash
-export APP_SEED_ENABLED=true
-export APP_SEED_USER_EMAIL=user@example.com
-export APP_SEED_COUNT=1000
-mvn spring-boot:run
-```
-
-Example with `java -jar`:
-
-```bash
-APP_SEED_ENABLED=true APP_SEED_USER_EMAIL=user@example.com APP_SEED_COUNT=1500 java -jar target/job-tracker-1.0.0.jar
-```
-
-If `APP_SEED_ENABLED=true` and `APP_SEED_USER_EMAIL` is not provided (or the user does not exist), the application startup fails with a clear error.
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_URL` | `jdbc:mariadb://localhost:3306/jobtracker` | JDBC URL |
-| `DB_USERNAME` | `jobtracker` | DB username |
-| `DB_PASSWORD` | `jobtracker` | DB password |
-| `JWT_SECRET` | *(dev default)* | JWT signing secret (min 256 bits) |
-| `JWT_ACCESS_TOKEN_EXPIRATION_MS` | `900000` | Access token TTL (15 min) |
-| `JWT_REFRESH_TOKEN_EXPIRATION_MS` | `604800000` | Refresh token TTL (7 days) |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:5173` | Allowed CORS origins |
-| `GOOGLE_DRIVE_CLIENT_ID` | *(empty)* | Google OAuth client ID for Drive integration |
-| `GOOGLE_DRIVE_CLIENT_SECRET` | *(empty)* | Google OAuth client secret for Drive integration |
-| `GOOGLE_DRIVE_REDIRECT_URI` | `http://localhost:8080/api/v1/google-drive/oauth/callback` | OAuth callback URL registered in Google Cloud |
-| `GOOGLE_DRIVE_OAUTH_COMPLETE_URL` | *(empty)* | Frontend URL that receives OAuth completion redirects |
-| `OPENAI_GPT_CLIENT_ID` | *(empty)* | OAuth client ID for GPT Actions |
-| `OPENAI_GPT_CLIENT_SECRET` | *(empty)* | OAuth client secret for GPT Actions |
-| `OPENAI_GPT_REDIRECT_URIS` | *(empty)* | Comma-separated GPT Action redirect URIs |
-| `OPENAI_GPT_SCOPES` | `read:profile,read:applications,write:applications,read:resume,read:google-drive,read:metrics` | Allowed GPT Action scopes |
-| `GPT_FALLBACK_AUTH_ENABLED` | `false` | Enables the temporary static bearer fallback |
-| `GPT_FALLBACK_AUTH_TOKEN` | *(empty)* | Static bearer token used when fallback auth is enabled |
-| `RATE_LIMIT_AUTH_LOGIN_LIMIT_FOR_PERIOD` | `10` | Max login requests allowed per refresh period |
-| `RATE_LIMIT_AUTH_LOGIN_REFRESH_PERIOD` | `1m` | Window used by the login rate limiter |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP gRPC endpoint (Jaeger/OpenTelemetry collector) |
-| `PROMETHEUS_URL` | `http://localhost:9090` | Prometheus base URL for observability integrations |
-| `SERVER_PORT` | `8080` | Server port |
-
-## Monitoring
-
-Spring Boot Actuator runs on a dedicated management port **8081**, completely separate from the main API port (8080). This port is **never exposed to the host machine** in Docker Compose — it is only reachable within the internal `infra_network` Docker network.
-
-Prometheus scrapes metrics directly from the container over the internal network:
-
-```yaml
-scrape_configs:
-  - job_name: job-tracker
-    static_configs:
-      - targets: ['app:8081']
-    metrics_path: /actuator/prometheus
-    scheme: http
-    scrape_interval: 15s
-```
-
-No authentication token is required — network-level isolation (Docker bridge network) is the security boundary. The Actuator is unreachable from outside the Docker network.
-
-## Rate Limiting
-
-Auth endpoints are protected with Resilience4j rate limiters. When a limit is exceeded, the API returns `429 Too Many Requests` with the standard error payload used by the application.
-
-## CI/CD
-
-GitHub Actions workflow (`.github/workflows/ci.yml`) triggers on push/PR to `main`:
-
-1. Checkout
-2. Setup Java 21
-3. Build project
-4. Run unit tests
-5. Run integration tests (Testcontainers)
-6. Run E2E tests (Testcontainers + RestAssured)
-7. Full `mvn verify`
-
-## API Documentation
-
-Swagger UI is available at `http://localhost:8080/swagger-ui.html` when the app is running.
+3. Backend... (truncated)
