@@ -97,14 +97,13 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
         registerUser("gpt-user@example.com", "pass1234");
         PkcePair pkcePair = generatePkcePair();
 
-        String authorizationCode = authorizeWithPkce("gpt-user@example.com", "pass1234",
+        String authorizationCode = authorizeWithPkce("gpt-user@example.com",
                 "openid read:profile read:applications write:applications read:metrics", pkcePair);
         TokenResponse tokenResponse = exchangeTokenWithBasic(authorizationCode, pkcePair.verifier());
 
         Jwt jwt = authorizationServerJwtDecoder.decode(tokenResponse.accessToken());
         assertThat(jwt.getSubject()).isEqualTo("gpt-user@example.com");
-        assertThat(jwt.getClaimAsStringList("scope"))
-                .contains("write:applications", "read:profile");
+        assertThat(jwt.getClaimAsStringList("scope")).contains("write:applications", "read:profile");
         assertThat(jwt.getClaimAsStringList("roles")).contains("ROLE_GPT_CLIENT");
         assertThat(jwt.getClaimAsString("user_id")).isNotBlank();
         assertThat(tokenResponse.idToken()).isNotBlank();
@@ -143,7 +142,7 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
     void pkceProtectedCodeFlow_shouldRejectInvalidVerifier() throws Exception {
         registerUser("pkce-user@example.com", "pass1234");
         PkcePair pkcePair = generatePkcePair();
-        String authorizationCode = authorizeWithPkce("pkce-user@example.com", "pass1234",
+        String authorizationCode = authorizeWithPkce("pkce-user@example.com",
                 "openid read:profile read:applications", pkcePair);
 
         mockMvc.perform(post("/oauth2/token")
@@ -160,7 +159,7 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
     void tokenExchange_shouldSupportClientSecretPost() throws Exception {
         registerUser("post-client@example.com", "pass1234");
         PkcePair pkcePair = generatePkcePair();
-        String authorizationCode = authorizeWithPkce("post-client@example.com", "pass1234",
+        String authorizationCode = authorizeWithPkce("post-client@example.com",
                 "openid read:profile read:applications", pkcePair);
 
         TokenResponse tokenResponse = exchangeTokenWithPost(authorizationCode, pkcePair.verifier());
@@ -174,9 +173,14 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
         registerUser("readonly-gpt@example.com", "pass1234");
         PkcePair pkcePair = generatePkcePair();
 
-        String authorizationCode = authorizeWithPkce("readonly-gpt@example.com", "pass1234",
+        String authorizationCode = authorizeWithPkce("readonly-gpt@example.com",
                 "openid read:profile read:applications", pkcePair);
         TokenResponse tokenResponse = exchangeTokenWithBasic(authorizationCode, pkcePair.verifier());
+
+        Jwt jwt = authorizationServerJwtDecoder.decode(tokenResponse.accessToken());
+        assertThat(jwt.getClaimAsStringList("roles")).doesNotContain("ROLE_USER");
+
+        assertThat(jwt.getClaimAsStringList("scope")).doesNotContain("write:applications");
 
         mockMvc.perform(post("/api/v1/applications")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenResponse.accessToken())
@@ -228,7 +232,7 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
         return objectMapper.readValue(result.getResponse().getContentAsString(), AuthResponse.class);
     }
 
-    private String authorizeWithPkce(String email, String password, String scope, PkcePair pkcePair) throws Exception {
+    private String authorizeWithPkce(String email, String scope, PkcePair pkcePair) throws Exception {
         MvcResult result = mockMvc.perform(get("/oauth2/authorize")
                         .with(user(email).roles("USER"))
                         .queryParam("response_type", "code")

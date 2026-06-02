@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -146,7 +147,7 @@ public class AuthorizationServerConfig {
             LinkedHashSet<String> roles = new LinkedHashSet<>();
             roles.add("ROLE_GPT_CLIENT");
             context.getPrincipal().getAuthorities().stream()
-                    .map(authority -> authority.getAuthority())
+                    .map(GrantedAuthority::getAuthority)
                     .filter(authority -> authority.startsWith("ROLE_"))
                     .filter(authority -> !"ROLE_USER".equals(authority))
                     .forEach(roles::add);

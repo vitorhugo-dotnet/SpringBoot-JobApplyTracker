@@ -339,10 +339,8 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
         GoogleDriveBaseResume resume = buildBaseResume(connection);
         googleDriveBaseResumeRepository.save(resume);
 
-        mockMvc.perform(post("/api/v1/google-drive/resume-placeholders")
-                        .header("Authorization", "Bearer " + betaAccessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"baseResumeId\":\"" + resume.getId() + "\"}"))
+        mockMvc.perform(get("/api/v1/google-drive/resume-placeholders/" + resume.getId())
+                        .header("Authorization", "Bearer " + betaAccessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.baseResumeId").value(resume.getId().toString()))
                 .andExpect(jsonPath("$.applicationId").doesNotExist())
@@ -536,8 +534,8 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
 
         List<GoogleDriveBaseResume> saved = googleDriveBaseResumeRepository.findAll();
         assertThat(saved).hasSize(1);
-        assertThat(saved.get(0).getLanguage()).isEqualTo("EN");
-        assertThat(saved.get(0).isTemplate()).isTrue();
+        assertThat(saved.getFirst().getLanguage()).isEqualTo("EN");
+        assertThat(saved.getFirst().isTemplate()).isTrue();
     }
 
     private GoogleDriveConnection buildConnectionWithRootFolder() {
@@ -656,8 +654,7 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
             if (values == null || values.isEmpty()) {
                 return;
             }
-            String currentText = documentTextById.getOrDefault(documentId, DEFAULT_TEMPLATE_TEXT);
-            String updatedText = currentText;
+            String updatedText = documentTextById.getOrDefault(documentId, DEFAULT_TEMPLATE_TEXT);
             for (Map.Entry<String, String> entry : values.entrySet()) {
                 String replacement = entry.getValue() == null ? "" : entry.getValue();
                 String token = entry.getKey();

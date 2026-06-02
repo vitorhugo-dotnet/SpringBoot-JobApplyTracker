@@ -217,8 +217,8 @@ public class GoogleDriveController {
     })
     @PreAuthorize("hasRole('BETA')")
     @GetMapping("/resume-placeholders/{baseResumeId}")
-    public ResponseEntity<ResumePlaceholderDetectionResponse> detectResumePlaceholders(@Valid @PathVariable UUID applicationId) {
-        return ResponseEntity.ok(resumeGenerationService.detectPlaceholders(applicationId));
+    public ResponseEntity<ResumePlaceholderDetectionResponse> detectResumePlaceholders(@Valid @PathVariable UUID baseResumeId) {
+        return ResponseEntity.ok(resumeGenerationService.detectPlaceholders(baseResumeId));
     }
 
     @Operation(summary = "Generate an application resume by replacing template placeholders",

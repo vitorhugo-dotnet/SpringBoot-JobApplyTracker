@@ -53,10 +53,10 @@ public class ResumeGenerationService {
     }
 
     @Transactional
-    public ResumePlaceholderDetectionResponse detectPlaceholders(UUID applicationId) {
+    public ResumePlaceholderDetectionResponse detectPlaceholders(UUID baseResumeId) {
         UUID userId = securityUtils.getCurrentUserId();
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
-        GoogleDriveBaseResume baseResume = getBaseResume(applicationId, userId);
+        GoogleDriveBaseResume baseResume = getBaseResume(baseResumeId, userId);
         String documentText = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), baseResume.getGoogleFileId());
 
         return new ResumePlaceholderDetectionResponse(
