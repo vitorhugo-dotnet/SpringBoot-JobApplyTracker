@@ -2,7 +2,6 @@ package com.jobtracker.service;
 
 import com.jobtracker.config.GoogleDriveProperties;
 import com.jobtracker.dto.gdrive.BaseResumeContentResponse;
-import com.jobtracker.dto.gdrive.ResumePlaceholderDetectionRequest;
 import com.jobtracker.dto.gdrive.ResumePlaceholderDetectionResponse;
 import com.jobtracker.dto.gdrive.ResumePlaceholderRequest;
 import com.jobtracker.dto.gdrive.ResumePlaceholderResponse;
@@ -30,7 +29,7 @@ import java.util.regex.Pattern;
 @Service
 public class ResumeGenerationService {
 
-    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{(.*?)\\}\\}");
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{(.*?)}}");
 
     private final GoogleDriveApiClient googleDriveApiClient;
     private final GoogleDriveProperties googleDriveProperties;
@@ -54,10 +53,10 @@ public class ResumeGenerationService {
     }
 
     @Transactional
-    public ResumePlaceholderDetectionResponse detectPlaceholders(ResumePlaceholderDetectionRequest request) {
+    public ResumePlaceholderDetectionResponse detectPlaceholders(UUID applicationId) {
         UUID userId = securityUtils.getCurrentUserId();
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
-        GoogleDriveBaseResume baseResume = getBaseResume(request.baseResumeId(), userId);
+        GoogleDriveBaseResume baseResume = getBaseResume(applicationId, userId);
         String documentText = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), baseResume.getGoogleFileId());
 
         return new ResumePlaceholderDetectionResponse(
@@ -247,7 +246,10 @@ public class ResumeGenerationService {
     private String buildVacancyFolderName(JobApplication application) {
         String suffix = " - APP-" + application.getId();
         String rawBase = firstNonBlank(application.getVacancyName(), application.getOrganization(), "Application");
-        String truncatedBase = truncateFileName(sanitizeFileName(rawBase), 180 - suffix.length());
+        String truncatedBase;
+        if (rawBase != null) {
+            truncatedBase = truncateFileName(sanitizeFileName(rawBase), 180 - suffix.length());
+        } else throw new IllegalStateException("Vacancy name, organization and application id are all blank for application id: " + application.getId());
         return truncatedBase + suffix;
     }
 

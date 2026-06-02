@@ -202,27 +202,29 @@ public class GoogleDriveController {
     @Operation(summary = "Copy a base resume into an application folder")
     @PreAuthorize("hasRole('BETA')")
     @PostMapping("/applications/{applicationId}/resume-copies")
-    public ResponseEntity<GoogleDriveResumeCopyResponse> copyBaseResume(
-            @PathVariable UUID applicationId,
-            @Valid @RequestBody GoogleDriveResumeCopyRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(googleDriveService.copyBaseResumeToApplication(applicationId, request));
+    public ResponseEntity<GoogleDriveResumeCopyResponse> copyBaseResume(@PathVariable UUID applicationId, @Valid @RequestBody GoogleDriveResumeCopyRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(googleDriveService.copyBaseResumeToApplication(applicationId, request));
     }
 
-    @Operation(summary = "Detect placeholders in a configured base resume")
+    @Operation(summary = "Detect placeholders in a configured base resume",
+        description = "Analyzes the specified base resume for template placeholders and returns a list of detected placeholders. " +
+                "This endpoint is intended for AI/tool consumption to discover which placeholders are available for resume generation. " +
+                "The `baseResumeId` path parameter MUST be a UUID — filenames are NOT valid.",
+    responses = {
+        @ApiResponse(responseCode = "200", description = "Placeholders detected successfully",
+            content = @Content(schema = @Schema(implementation = ResumePlaceholderDetectionResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Base resume not found")
+    })
     @PreAuthorize("hasRole('BETA')")
-    @PostMapping("/resume-placeholders")
-    public ResponseEntity<ResumePlaceholderDetectionResponse> detectResumePlaceholders(
-            @Valid @RequestBody ResumePlaceholderDetectionRequest request) {
-        return ResponseEntity.ok(resumeGenerationService.detectPlaceholders(request));
+    @GetMapping("/resume-placeholders/{baseResumeId}")
+    public ResponseEntity<ResumePlaceholderDetectionResponse> detectResumePlaceholders(@Valid @PathVariable UUID applicationId) {
+        return ResponseEntity.ok(resumeGenerationService.detectPlaceholders(applicationId));
     }
 
     @Operation(summary = "Generate an application resume by replacing template placeholders")
     @PreAuthorize("hasRole('BETA')")
     @PostMapping("/applications/{applicationId}/generated-resumes")
-    public ResponseEntity<ResumePlaceholderResponse> generateResume(
-            @PathVariable UUID applicationId,
-            @Valid @RequestBody ResumePlaceholderRequest request) {
+    public ResponseEntity<ResumePlaceholderResponse> generateResume(@PathVariable UUID applicationId, @Valid @RequestBody ResumePlaceholderRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(resumeGenerationService.generateTemplateResume(applicationId, request));
     }
@@ -257,8 +259,7 @@ public class GoogleDriveController {
         return buildDownloadResponse(generatedResumeDownloadService.downloadAsPdf(applicationId));
     }
 
-    private ResponseEntity<ByteArrayResource> buildDownloadResponse(
-            GoogleDriveGeneratedResumeDownloadService.DownloadedFile file) {
+    private ResponseEntity<ByteArrayResource> buildDownloadResponse(GoogleDriveGeneratedResumeDownloadService.DownloadedFile file) {
 
         ByteArrayResource resource = new ByteArrayResource(file.content());
 
