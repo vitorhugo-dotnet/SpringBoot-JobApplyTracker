@@ -20,10 +20,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Verifies that the MCP endpoint requires authentication via the existing OAuth2/JWT machinery.
  *
- * The MCP server exposes its endpoint via Streamable HTTP (POST /mcp).
- * All requests must carry a valid Bearer token — the same token used for the REST API.
+ * Spring AI 1.0.0 uses SSE transport (WebMvcSseServerTransport). The message endpoint for
+ * JSON-RPC requests is POST /mcp/messages. The response is returned directly in the HTTP
+ * response body (as required by the MCP HTTP+SSE spec).
  */
 class McpAuthIT extends AbstractIntegrationTest {
+
+    private static final String MCP_ENDPOINT = "/mcp/messages";
 
     private static final String MCP_INITIALIZE_BODY = """
             {
@@ -63,7 +66,7 @@ class McpAuthIT extends AbstractIntegrationTest {
 
     @Test
     void mcpEndpoint_withoutToken_returns403() throws Exception {
-        mockMvc.perform(post("/mcp")
+        mockMvc.perform(post(MCP_ENDPOINT)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(MCP_INITIALIZE_BODY))
                 .andExpect(status().isForbidden());
@@ -71,7 +74,7 @@ class McpAuthIT extends AbstractIntegrationTest {
 
     @Test
     void mcpEndpoint_withValidToken_doesNotReturn403() throws Exception {
-        MvcResult result = mockMvc.perform(post("/mcp")
+        MvcResult result = mockMvc.perform(post(MCP_ENDPOINT)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(MCP_INITIALIZE_BODY))
@@ -81,7 +84,7 @@ class McpAuthIT extends AbstractIntegrationTest {
 
     @Test
     void mcpEndpoint_withMalformedToken_returns403() throws Exception {
-        mockMvc.perform(post("/mcp")
+        mockMvc.perform(post(MCP_ENDPOINT)
                         .header("Authorization", "Bearer not-a-real-jwt-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(MCP_INITIALIZE_BODY))
@@ -89,16 +92,14 @@ class McpAuthIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void mcpToken_doesNotAuthenticateRestEndpoints() throws Exception {
-        // The legacy JWT from auth/register IS valid for REST endpoints — this test verifies
-        // that security remains symmetric: a valid auth token works for both REST and MCP paths.
-        // (The inverse — that a malformed token fails both — is covered by the malformed test above.)
+    void mcpToken_worksForRestEndpoints() throws Exception {
+        // Same JWT works for both REST and MCP — confirms auth symmetry.
+        // 400 = passed auth but body was invalid; anything except 403 means auth succeeded.
         MvcResult result = mockMvc.perform(post("/api/v1/applications")
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andReturn();
-        // 400 means we passed auth but the request body was invalid — security worked correctly
         assertThat(result.getResponse().getStatus()).isNotEqualTo(403);
     }
 }

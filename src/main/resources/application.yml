@@ -7,7 +7,6 @@ spring:
         enabled: true
         name: job-tracker-mcp
         version: 1.0.0
-        protocol: STREAMABLE
   threads:
     virtual:
       enabled: true

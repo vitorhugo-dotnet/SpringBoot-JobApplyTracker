@@ -327,7 +327,7 @@ Response:
 
 ## MCP Server (Model Context Protocol)
 
-The backend exposes all core domain services as MCP tools via a **Streamable HTTP** endpoint at `POST /mcp`. Any MCP-compatible AI client (Claude Desktop, Claude.ai, `mcp-cli`, etc.) can call these tools on behalf of an authenticated user.
+The backend exposes all core domain services as MCP tools via a **Streamable HTTP** endpoint at `POST /mcp/messages`. Any MCP-compatible AI client (Claude Desktop, Claude.ai, `mcp-cli`, etc.) can call these tools on behalf of an authenticated user.
 
 ### How authentication works
 
@@ -335,7 +335,7 @@ MCP requests use the **same OAuth2 Authorization Server** already used by GPT Ac
 
 1. MCP client completes OAuth2 **Authorization Code + PKCE** against the existing AS.
 2. The AS issues a JWT carrying the user's `id`, `roles` (`ROLE_USER`, `ROLE_BETA`, etc.), and scopes.
-3. MCP client presents the JWT as `Authorization: Bearer <token>` on every `POST /mcp` request.
+3. MCP client presents the JWT as `Authorization: Bearer <token>` on every `POST /mcp/messages` request.
 4. The existing `BearerTokenAuthenticationFilter` validates the JWT, populates the `SecurityContext` with the real user, and all domain service ownership checks (`SecurityUtils.getCurrentUser()`) and role guards (`@PreAuthorize`) work exactly as they do for REST requests.
 
 ### Required environment variables
@@ -363,7 +363,7 @@ MCP requests use the **same OAuth2 Authorization Server** already used by GPT Ac
 ### MCP endpoint
 
 ```
-POST /mcp
+POST /mcp/messages
 Authorization: Bearer <access_token>
 Content-Type: application/json
 ```
@@ -423,13 +423,13 @@ Prompts are pre-built guided workflows. Call `prompts/get` with the prompt name 
 TOKEN="<your-access-token>"
 
 # 2. List available tools
-curl -X POST http://localhost:8080/mcp \
+curl -X POST http://localhost:8080/mcp/messages \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 
 # 3. Call a tool
-curl -X POST http://localhost:8080/mcp \
+curl -X POST http://localhost:8080/mcp/messages \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -442,7 +442,7 @@ curl -X POST http://localhost:8080/mcp \
   }'
 
 # 4. Get a prompt
-curl -X POST http://localhost:8080/mcp \
+curl -X POST http://localhost:8080/mcp/messages \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -465,7 +465,7 @@ Add the following to your Claude Desktop `claude_desktop_config.json`:
     "job-tracker": {
       "command": "mcp-remote",
       "args": [
-        "http://localhost:8080/mcp",
+        "http://localhost:8080/mcp/messages",
         "--header",
         "Authorization: Bearer <your-access-token>"
       ]
