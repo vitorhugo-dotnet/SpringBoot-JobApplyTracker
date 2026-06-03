@@ -14,7 +14,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SqlParameterValue;
+
+import javax.sql.DataSource;
+import java.sql.Types;
+import java.util.Arrays;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
@@ -91,9 +98,37 @@ public class AuthorizationServerConfig {
 
     @Bean
     public OAuth2AuthorizationService authorizationService(
-            JdbcOperations jdbcOperations,
+            DataSource dataSource,
             RegisteredClientRepository registeredClientRepository) {
-        return new JdbcOAuth2AuthorizationService(jdbcOperations, registeredClientRepository);
+        // MariaDB JDBC 3.x maps LONGBLOB → LONGVARBINARY (-4) and LONGTEXT → LONGVARCHAR (-1).
+        // Spring AS binds all LOB parameters as Types.BLOB (2004), which MariaDB rejects with
+        // "Could not convert to -4". Retype each BLOB SqlParameterValue to the driver-native type
+        // so Spring JDBC calls ps.setBytes() / ps.setString() instead of ps.setObject(..., 2004).
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource) {
+            @Override
+            public int update(String sql, Object... args) throws DataAccessException {
+                return super.update(sql, args == null ? null : rewriteBlobArgs(args));
+            }
+
+            private Object[] rewriteBlobArgs(Object[] args) {
+                return Arrays.stream(args)
+                        .map(arg -> {
+                            if (!(arg instanceof SqlParameterValue spv)
+                                    || spv.getSqlType() != Types.BLOB) {
+                                return arg;
+                            }
+                            if (spv.getValue() instanceof byte[] bytes) {
+                                return new SqlParameterValue(Types.LONGVARBINARY, bytes);
+                            }
+                            if (spv.getValue() instanceof String str) {
+                                return new SqlParameterValue(Types.LONGVARCHAR, str);
+                            }
+                            return new SqlParameterValue(Types.NULL, null);
+                        })
+                        .toArray();
+            }
+        };
+        return new JdbcOAuth2AuthorizationService(jdbcTemplate, registeredClientRepository);
     }
 
     @Bean
