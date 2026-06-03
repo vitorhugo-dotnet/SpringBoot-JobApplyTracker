@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Registers MCP prompt templates. The Spring AI MCP server auto-configuration collects beans of
+ * Registers MCP prompt templates. The Spring AI MCP server autoconfiguration collects beans of
  * type List&lt;McpServerFeatures.SyncPromptSpecification&gt; and exposes them via the
  * prompts/list and prompts/get protocol endpoints.
- *
- * Prompts are parameterised instructions that tell an MCP client (e.g. Claude) exactly which
+ * <p>
+ * Prompts are parameterized instructions that tell an MCP client (e.g. Claude) exactly which
  * tools to call and in which order to accomplish a guided workflow.
  */
 @Configuration

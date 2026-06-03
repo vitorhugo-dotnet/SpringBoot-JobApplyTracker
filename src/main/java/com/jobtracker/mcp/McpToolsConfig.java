@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 public class McpToolsConfig {
 
     /**
-     * Registers all MCP tool objects with Spring AI. The auto-configuration for
+     * Registers all MCP tool objects with Spring AI. The autoconfiguration for
      * spring-ai-starter-mcp-server-webmvc collects ToolCallbackProvider beans and exposes
      * their @Tool-annotated methods via the MCP tools/list and tools/call protocol endpoints.
      */

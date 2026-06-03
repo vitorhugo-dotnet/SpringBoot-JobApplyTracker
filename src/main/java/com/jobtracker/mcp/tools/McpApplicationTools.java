@@ -152,29 +152,29 @@ public class McpApplicationTools {
             Fiz teste Técnico - aguardando atualização, RH (Negociação),
             Rejeitado, Tarde demais, Ghosting.
             """)
-    public ApplicationResponse updateApplicationStatus(
+    public void updateApplicationStatus(
             @ToolParam(description = "Application UUID") String id,
             @ToolParam(description = "New status display name") String status) {
-        return applicationService.updateStatus(UUID.fromString(id), new UpdateStatusRequest(status));
+        applicationService.updateStatus(UUID.fromString(id), new UpdateStatusRequest(status));
     }
 
     @Tool(description = "Enable or disable the recruiter DM reminder for a job application.")
-    public ApplicationResponse updateApplicationReminder(
+    public void updateApplicationReminder(
             @ToolParam(description = "Application UUID") String id,
             @ToolParam(description = "true to enable the DM reminder, false to disable it") boolean enabled) {
-        return applicationService.updateReminder(UUID.fromString(id), new UpdateReminderRequest(enabled));
+        applicationService.updateReminder(UUID.fromString(id), new UpdateReminderRequest(enabled));
     }
 
     @Tool(description = "Mark that a LinkedIn DM was sent to the recruiter for a job application.")
-    public ApplicationResponse markRecruiterDmSent(
+    public void markRecruiterDmSent(
             @ToolParam(description = "Application UUID") String id) {
-        return applicationService.markDmSent(UUID.fromString(id), new MarkDmSentRequest());
+        applicationService.markDmSent(UUID.fromString(id), new MarkDmSentRequest());
     }
 
     @Tool(description = "Archive a job application so it is hidden from the default active list.")
-    public ApplicationResponse archiveApplication(
+    public void archiveApplication(
             @ToolParam(description = "Application UUID") String id) {
-        return applicationService.archive(UUID.fromString(id));
+        applicationService.archive(UUID.fromString(id));
     }
 
     @Tool(description = "Permanently delete a job application.")
