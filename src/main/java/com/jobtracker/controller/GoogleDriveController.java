@@ -224,7 +224,12 @@ public class GoogleDriveController {
     }
 
     @Operation(summary = "Generate an application resume by replacing template placeholders",
-        description = "Generates a CV for the specified application by replacing template placeholders in the resume. The request body should contain key-value pairs where keys correspond to placeholder names (without curly braces) and values are the content. The `applicationId` path parameter MUST be a UUID.",
+        description = """
+        values is REQUIRED.
+        Keys must match the placeholders returned by the placeholder detection endpoint.
+        Use RESUMO instead of {{RESUMO}}.
+        Generate values for all detected placeholders before calling this endpoint.
+        """,
     responses = {
         @ApiResponse(responseCode = "201", description = "Resume generated successfully",
             content = @Content(schema = @Schema(implementation = ResumePlaceholderResponse.class))),
