@@ -78,6 +78,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/google-drive/oauth/callback").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs.yaml").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers(
+                                "/.well-known/oauth-protected-resource",
+                                "/.well-known/oauth-protected-resource/**").permitAll()
                         .requestMatchers("/mcp/**").authenticated()
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())
