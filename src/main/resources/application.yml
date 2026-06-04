@@ -7,6 +7,7 @@ spring:
         enabled: true
         name: job-tracker-mcp
         version: 1.0.0
+        transport: WEBMVC
   threads:
     virtual:
       enabled: true
