@@ -1,9 +1,11 @@
 package com.jobtracker.mcp;
 
+import io.modelcontextprotocol.spec.McpSchema.CompleteRequest.CompleteArgument;
 import io.modelcontextprotocol.spec.McpSchema.GetPromptResult;
 import io.modelcontextprotocol.spec.McpSchema.PromptMessage;
 import io.modelcontextprotocol.spec.McpSchema.Role;
 import io.modelcontextprotocol.spec.McpSchema.TextContent;
+import org.springaicommunity.mcp.annotation.McpComplete;
 import org.springaicommunity.mcp.annotation.McpArg;
 import org.springaicommunity.mcp.annotation.McpPrompt;
 import org.springframework.stereotype.Service;
@@ -19,7 +21,10 @@ public class McpPromptsConfig {
     /**
      * Full autonomous vacancy-intake workflow.
      */
-    @McpPrompt(name = "Intake-Vacancy", description = "Execute the autonomous application intake workflow from a pasted vacancy")
+    @McpPrompt(
+            name = McpPromptNames.INTAKE_VACANCY,
+            title = "Intake Vacancy",
+            description = "Execute the autonomous application intake workflow from a pasted vacancy")
     public GetPromptResult intakeVacancyPrompt(
             @McpArg(name = "vacancyContent", description = "Job description, link, recruiter message, or LinkedIn post", required = true)
             String vacancyContent) {
@@ -93,7 +98,10 @@ public class McpPromptsConfig {
                 List.of(new PromptMessage(Role.USER, new TextContent(text))));
     }
 
-    @McpPrompt(name = "Prepare-New-Application", description = "Guide the user through logging a new job application step-by-step")
+    @McpPrompt(
+            name = McpPromptNames.PREPARE_NEW_APPLICATION,
+            title = "Prepare New Application",
+            description = "Guide the user through logging a new job application step-by-step")
     public GetPromptResult prepareNewApplicationPrompt(
             @McpArg(name = "vacancyName", description = "The job title or vacancy name, e.g. 'Backend Engineer'", required = false)
             String vacancyName,
@@ -124,7 +132,40 @@ public class McpPromptsConfig {
                 List.of(new PromptMessage(Role.USER, new TextContent(text))));
     }
 
-    @McpPrompt(name = "Tailor-Resume", description = "Generate a tailored resume for a specific application using Google Drive")
+    @McpComplete(prompt = McpPromptNames.INTAKE_VACANCY)
+    public List<String> completeIntakeVacancy(CompleteArgument argument) {
+        return List.of();
+    }
+
+    @McpComplete(prompt = McpPromptNames.PREPARE_NEW_APPLICATION)
+    public List<String> completePrepareNewApplication(CompleteArgument argument) {
+        if (argument == null || argument.name() == null) {
+            return List.of();
+        }
+        if (!"vacancyName".equals(argument.name())) {
+            return List.of();
+        }
+        String prefix = argument.value() == null ? "" : argument.value().toLowerCase();
+        return List.of("Backend Engineer", "Full Stack Engineer", "Software Engineer", "Data Engineer")
+                .stream()
+                .filter(candidate -> candidate.toLowerCase().startsWith(prefix))
+                .toList();
+    }
+
+    @McpComplete(prompt = McpPromptNames.TAILOR_RESUME)
+    public List<String> completeTailorResume(CompleteArgument argument) {
+        return List.of();
+    }
+
+    @McpComplete(prompt = McpPromptNames.SUMMARIZE_PIPELINE)
+    public List<String> completeSummarizePipeline(CompleteArgument argument) {
+        return List.of();
+    }
+
+    @McpPrompt(
+            name = McpPromptNames.TAILOR_RESUME,
+            title = "Tailor Resume",
+            description = "Generate a tailored resume for a specific application using Google Drive")
     public GetPromptResult tailorResumePrompt(
             @McpArg(name = "applicationId", description = "UUID of the target job application", required = true)
             String applicationId) {
@@ -143,7 +184,10 @@ public class McpPromptsConfig {
                 List.of(new PromptMessage(Role.USER, new TextContent(text))));
     }
 
-    @McpPrompt(name = "Summarize-Pipeline", description = "Produce a human-readable summary of the current job search pipeline")
+    @McpPrompt(
+            name = McpPromptNames.SUMMARIZE_PIPELINE,
+            title = "Summarize Pipeline",
+            description = "Produce a human-readable summary of the current job search pipeline")
     public GetPromptResult summarizePipelinePrompt() {
         String text = """
                 Please summarize my current job search pipeline:

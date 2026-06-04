@@ -412,9 +412,9 @@ Prompts are pre-built guided workflows. Call `prompts/get` with the prompt name 
 
 | Prompt | Required args | Description |
 |--------|--------------|-------------|
-| `prepare_new_application` | `vacancyName`, `recruiterName`, `organization` (all optional) | Guides the AI to gather any missing fields and call `createApplication` |
-| `tailor_resume` | `applicationId` | Fetches the application, lists base resumes, asks which to use, calls `copyResumeToApplication`, and returns the Google Docs link |
-| `summarize_pipeline` | *(none)* | Calls `getPipelineSummary`, `listApplications` (recent 10), `getOverdueApplications`, and `getGamificationProfile` to produce a full pipeline report |
+| `Prepare-New-Application` | `vacancyName`, `recruiterName`, `organization` (all optional) | Guides the AI to gather any missing fields and call `createApplication` |
+| `Tailor-Resume` | `applicationId` | Fetches the application, lists base resumes, asks which to use, calls `copyResumeToApplication`, and returns the Google Docs link |
+| `Summarize-Pipeline` | *(none)* | Calls `getPipelineSummary`, `listApplications` (recent 10), `getOverdueApplications`, and `getGamificationProfile` to produce a full pipeline report |
 
 ### Quick smoke-test with curl
 
@@ -449,7 +449,7 @@ curl -X POST http://localhost:8080/mcp/messages \
     "jsonrpc":"2.0","id":3,
     "method":"prompts/get",
     "params":{
-      "name":"summarize_pipeline",
+      "name":"Summarize-Pipeline",
       "arguments":{}
     }
   }'
