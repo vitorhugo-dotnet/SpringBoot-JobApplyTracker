@@ -3,6 +3,7 @@ package com.jobtracker.mcp;
 import com.jobtracker.mcp.tools.McpApplicationTools;
 import com.jobtracker.mcp.tools.McpDashboardTools;
 import com.jobtracker.mcp.tools.McpGoogleDriveTools;
+import com.jobtracker.mcp.tools.McpProfileTools;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.context.annotation.Bean;
@@ -20,9 +21,10 @@ public class McpToolsConfig {
     public ToolCallbackProvider mcpToolCallbackProvider(
             McpApplicationTools applicationTools,
             McpDashboardTools dashboardTools,
-            McpGoogleDriveTools driveTools) {
+            McpGoogleDriveTools driveTools,
+            McpProfileTools profileTools) {
         return MethodToolCallbackProvider.builder()
-                .toolObjects(applicationTools, dashboardTools, driveTools)
+                .toolObjects(applicationTools, dashboardTools, driveTools, profileTools)
                 .build();
     }
 }
