@@ -7,7 +7,11 @@ spring:
         enabled: true
         name: job-tracker-mcp
         version: 1.0.0
-        transport: WEBMVC
+        # Spring AI 1.0.0 registers the MCP message route from this property.
+        # Default is "/mcp/message" (singular); the OAuth protected-resource
+        # metadata, SecurityConfig (/mcp/**) and the external client all use
+        # "/mcp/messages" (plural), so align the registered route to match.
+        sse-message-endpoint: /mcp/messages
   threads:
     virtual:
       enabled: true
