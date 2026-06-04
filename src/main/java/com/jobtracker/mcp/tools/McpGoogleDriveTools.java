@@ -10,6 +10,7 @@ import com.jobtracker.service.GoogleDriveGeneratedResumeDownloadService.Download
 import com.jobtracker.service.GoogleDriveService;
 import com.jobtracker.service.ResumeGenerationService;
 import org.springaicommunity.mcp.annotation.McpTool;
+import org.springaicommunity.mcp.annotation.McpTool.McpAnnotations;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
@@ -40,57 +41,75 @@ public class McpGoogleDriveTools {
         this.generatedResumeDownloadService = generatedResumeDownloadService;
     }
 
-    @McpTool(description = """
-            Copy a base resume template into the application's Google Drive folder to generate
-            a tailored resume. Returns a link to the newly created Google Doc.
-            Requires BETA role.
-            """, name = "Copy-Resume-To-Application")
+    @McpTool(
+            name = "Copy-Resume-To-Application",
+            title = "Copy Resume To Application",
+            description = "Copy a base resume template into an application folder and return the new Google Doc link.",
+            annotations = @McpAnnotations(
+                    title = "Copy Resume To Application",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = false,
+                    openWorldHint = true),
+            generateOutputSchema = true)
     public GoogleDriveResumeCopyResponse copyResumeToApplication(
-            @McpToolParam(description = "UUID of the job application") String applicationId,
-            @McpToolParam(description = "UUID of the base resume template to copy") String baseResumeId) {
+            @McpToolParam(required = true, description = "UUID of the job application") String applicationId,
+            @McpToolParam(required = true, description = "UUID of the base resume template to copy") String baseResumeId) {
         return googleDriveService.copyBaseResumeToApplication(
                 UUID.fromString(applicationId),
                 new GoogleDriveResumeCopyRequest(UUID.fromString(baseResumeId)));
     }
 
-    @McpTool(description = """
-            Detect the template placeholders present in a base resume so values can be supplied
-            before generating a tailored resume. Returns the placeholder names without curly braces
-            (e.g. "RESUMO", "SKILLS").
-            The baseResumeId MUST be the base resume UUID — filenames are NOT valid.
-            Requires BETA role.
-            """, name = "Detect-Resume-Placeholders")
-    public ResumePlaceholderDetectionResponse detectResumePlaceholders(@McpToolParam(description = "UUID of the base resume (not the filename)") String baseResumeId) {
+    @McpTool(
+            name = "Detect-Resume-Placeholders",
+            title = "Detect Resume Placeholders",
+            description = "Detect placeholder names present in a base resume template.",
+            annotations = @McpAnnotations(
+                    title = "Detect Resume Placeholders",
+                    readOnlyHint = true,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = true),
+            generateOutputSchema = true)
+    public ResumePlaceholderDetectionResponse detectResumePlaceholders(
+            @McpToolParam(required = true, description = "UUID of the base resume (not the filename)") String baseResumeId) {
         return resumeGenerationService.detectPlaceholders(UUID.fromString(baseResumeId));
     }
 
-    @McpTool(description = """
-            Generate a tailored resume for a job application by copying a base resume template and
-            replacing its placeholders with the supplied values. A Google Doc and a PDF are created
-            in the application's Drive folder.
-            values is REQUIRED: a map keyed by placeholder name WITHOUT curly braces — e.g.
-            {"RESUMO": "Senior Java Developer", "HARDSKILL1": "Java"}. Keys must match the names
-            returned by Detect-Resume-Placeholders. Provide a value for every detected placeholder.
-            Requires BETA role.
-            """, name = "Generate-Resume")
+    @McpTool(
+            name = "Generate-Resume",
+            title = "Generate Resume",
+            description = "Generate a tailored resume by copying a template and replacing its placeholders.",
+            annotations = @McpAnnotations(
+                    title = "Generate Resume",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = false,
+                    openWorldHint = true),
+            generateOutputSchema = true)
     public ResumePlaceholderResponse generateResume(
-            @McpToolParam(description = "UUID of the job application") String applicationId,
-            @McpToolParam(description = "UUID of the base resume template to use") String baseResumeId,
-            @McpToolParam(description = "Placeholder values keyed by name without braces, e.g. {\"RESUMO\":\"...\"}")
+            @McpToolParam(required = true, description = "UUID of the job application") String applicationId,
+            @McpToolParam(required = true, description = "UUID of the base resume template to use") String baseResumeId,
+            @McpToolParam(required = true, description = "Placeholder values keyed by name without braces, e.g. {\"RESUMO\":\"...\"}")
             Map<String, String> values) {
         return resumeGenerationService.generateTemplateResume(
                 UUID.fromString(applicationId),
                 new ResumePlaceholderRequest(UUID.fromString(baseResumeId), values));
     }
 
-    @McpTool(description = """
-            Download the generated resume of a job application as a PDF. The binary file is returned
-            Base64-encoded together with its filename and content type. Generate a resume first
-            (Generate-Resume) before calling this.
-            Requires BETA role.
-            """, name = "Download-Generated-Resume-PDF")
+    @McpTool(
+            name = "Download-Generated-Resume-PDF",
+            title = "Download Generated Resume PDF",
+            description = "Download the generated resume PDF for an application as Base64-encoded content.",
+            annotations = @McpAnnotations(
+                    title = "Download Generated Resume PDF",
+                    readOnlyHint = true,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = true),
+            generateOutputSchema = true)
     public GeneratedResumePdf downloadGeneratedResumePdf(
-            @McpToolParam(description = "UUID of the job application") String applicationId) {
+            @McpToolParam(required = true, description = "UUID of the job application") String applicationId) {
         DownloadedFile file = generatedResumeDownloadService.downloadAsPdf(UUID.fromString(applicationId));
         return new GeneratedResumePdf(
                 file.fileName(),

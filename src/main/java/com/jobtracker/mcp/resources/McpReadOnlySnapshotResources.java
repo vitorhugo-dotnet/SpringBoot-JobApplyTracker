@@ -9,12 +9,16 @@ import com.jobtracker.service.DashboardService;
 import com.jobtracker.service.GamificationService;
 import com.jobtracker.service.GoogleDriveService;
 import com.jobtracker.util.SecurityUtils;
+import io.modelcontextprotocol.spec.McpSchema.Role;
 import org.springaicommunity.mcp.annotation.McpResource;
+import org.springaicommunity.mcp.annotation.McpResource.McpAnnotations;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 @Service
 public class McpReadOnlySnapshotResources {
+
+    private static final String LAST_MODIFIED = "2026-06-04";
 
     private final DashboardService dashboardService;
     private final GamificationService gamificationService;
@@ -40,7 +44,13 @@ public class McpReadOnlySnapshotResources {
     @McpResource(
             uri = McpResourcesConfig.URI_PIPELINE_SUMMARY,
             name = "Pipeline Summary",
-            mimeType = "application/json")
+            title = "Pipeline Summary",
+            description = "JSON snapshot of application counts, status breakdown, reminders, and activity rate.",
+            mimeType = "application/json",
+            annotations = @McpAnnotations(
+                    audience = {Role.USER, Role.ASSISTANT},
+                    lastModified = LAST_MODIFIED,
+                    priority = 1.0d))
     public String pipelineSummary() {
         return toJson(dashboardService.getSummary());
     }
@@ -48,7 +58,13 @@ public class McpReadOnlySnapshotResources {
     @McpResource(
             uri = McpResourcesConfig.URI_GAMIFICATION_PROFILE,
             name = "Gamification Profile",
-            mimeType = "application/json")
+            title = "Gamification Profile",
+            description = "JSON snapshot of the current user's gamification state.",
+            mimeType = "application/json",
+            annotations = @McpAnnotations(
+                    audience = {Role.USER, Role.ASSISTANT},
+                    lastModified = LAST_MODIFIED,
+                    priority = 0.7d))
     public String gamificationProfile() {
         return toJson(gamificationService.getProfile());
     }
@@ -56,7 +72,13 @@ public class McpReadOnlySnapshotResources {
     @McpResource(
             uri = McpResourcesConfig.URI_ACHIEVEMENTS,
             name = "Achievements",
-            mimeType = "application/json")
+            title = "Achievements",
+            description = "JSON list of achievement progress and unlock timestamps.",
+            mimeType = "application/json",
+            annotations = @McpAnnotations(
+                    audience = {Role.USER, Role.ASSISTANT},
+                    lastModified = LAST_MODIFIED,
+                    priority = 0.6d))
     public String achievements() {
         return toJson(gamificationService.getAchievements());
     }
@@ -65,7 +87,13 @@ public class McpReadOnlySnapshotResources {
     @McpResource(
             uri = McpResourcesConfig.URI_DRIVE_STATUS,
             name = "Drive Status",
-            mimeType = "application/json")
+            title = "Drive Status",
+            description = "JSON status of the current user's Google Drive connection and configuration.",
+            mimeType = "application/json",
+            annotations = @McpAnnotations(
+                    audience = {Role.USER, Role.ASSISTANT},
+                    lastModified = LAST_MODIFIED,
+                    priority = 0.5d))
     public String driveStatus() {
         return toJson(googleDriveService.getStatus());
     }
@@ -74,7 +102,13 @@ public class McpReadOnlySnapshotResources {
     @McpResource(
             uri = McpResourcesConfig.URI_BASE_RESUMES,
             name = "Base Resumes",
-            mimeType = "application/json")
+            title = "Base Resumes",
+            description = "JSON list of configured base resume templates.",
+            mimeType = "application/json",
+            annotations = @McpAnnotations(
+                    audience = {Role.USER, Role.ASSISTANT},
+                    lastModified = LAST_MODIFIED,
+                    priority = 0.9d))
     public String baseResumes() {
         return toJson(googleDriveService.listBaseResumes());
     }
@@ -82,7 +116,13 @@ public class McpReadOnlySnapshotResources {
     @McpResource(
             uri = McpResourcesConfig.URI_CURRENT_USER,
             name = "Current User",
-            mimeType = "application/json")
+            title = "Current User",
+            description = "JSON view of the authenticated user profile.",
+            mimeType = "application/json",
+            annotations = @McpAnnotations(
+                    audience = {Role.USER, Role.ASSISTANT},
+                    lastModified = LAST_MODIFIED,
+                    priority = 0.8d))
     public String currentUser() {
         UserResponse response = authMapper.toUserResponse(securityUtils.getCurrentUser());
         return toJson(response);

@@ -8,6 +8,7 @@ import com.jobtracker.dto.application.UpdateReminderRequest;
 import com.jobtracker.dto.application.UpdateStatusRequest;
 import com.jobtracker.service.ApplicationService;
 import org.springaicommunity.mcp.annotation.McpTool;
+import org.springaicommunity.mcp.annotation.McpTool.McpAnnotations;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
@@ -27,28 +28,29 @@ public class McpApplicationTools {
 
     // --- Read tools ---
 
-    @McpTool(description = """
-            List job applications with optional filters. All parameters are optional.
-            status: display name of the status, e.g. "RH", "Teste Técnico", "Rejeitado".
-            recruiterName: partial name match.
-            applicationDateFrom / applicationDateTo: date range in yyyy-MM-dd format.
-            interviewScheduled: true to show only applications with a scheduled interview.
-            archived: true to include archived applications (default: false / active only).
-            page: 0-based page number (default 0). size: page size (default 20).
-            sort: field,direction — e.g. "createdAt,desc" (default) or "applicationDate,asc".
-            """, name = "List-Applications")
+    @McpTool(
+            name = "List-Applications",
+            title = "List Applications",
+            description = "List job applications with optional filters and pagination.",
+            annotations = @McpAnnotations(
+                    title = "List Applications",
+                    readOnlyHint = true,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = false),
+            generateOutputSchema = true)
     public ApplicationPageResponse listApplications(
-            @McpToolParam(description = "Status filter — display name, e.g. 'RH' or 'Teste Técnico'") String status,
-            @McpToolParam(description = "Recruiter name partial match") String recruiterName,
-            @McpToolParam(description = "Application date range start yyyy-MM-dd (inclusive)") String applicationDateFrom,
-            @McpToolParam(description = "Application date range end yyyy-MM-dd (inclusive)") String applicationDateTo,
-            @McpToolParam(description = "Filter by interview scheduled flag") Boolean interviewScheduled,
-            @McpToolParam(description = "Include archived applications (default false)") Boolean archived,
-            @McpToolParam(description = "Page number 0-based (default 0)") Integer page,
-            @McpToolParam(description = "Page size (default 20)") Integer size,
-            @McpToolParam(description = "Sort field,direction e.g. createdAt,desc") String sort) {
+            @McpToolParam(required = false, description = "Status filter — display name, e.g. 'RH' or 'Teste Técnico'") String status,
+            @McpToolParam(required = false, description = "Recruiter name partial match") String recruiterName,
+            @McpToolParam(required = false, description = "Application date range start yyyy-MM-dd (inclusive)") String applicationDateFrom,
+            @McpToolParam(required = false, description = "Application date range end yyyy-MM-dd (inclusive)") String applicationDateTo,
+            @McpToolParam(required = false, description = "Filter by interview scheduled flag") Boolean interviewScheduled,
+            @McpToolParam(required = false, description = "Include archived applications (default false)") Boolean archived,
+            @McpToolParam(required = false, description = "Page number 0-based (default 0)") Integer page,
+            @McpToolParam(required = false, description = "Page size (default 20)") Integer size,
+            @McpToolParam(required = false, description = "Sort field,direction e.g. createdAt,desc") String sort) {
         LocalDate from = applicationDateFrom != null ? LocalDate.parse(applicationDateFrom) : null;
-        LocalDate to   = applicationDateTo   != null ? LocalDate.parse(applicationDateTo)   : null;
+        LocalDate to = applicationDateTo != null ? LocalDate.parse(applicationDateTo) : null;
         return applicationService.getAll(
                 status,
                 recruiterName,
@@ -58,47 +60,80 @@ public class McpApplicationTools {
                 archived,
                 page != null ? page : 0,
                 size != null ? size : 20,
-                sort  != null ? sort  : "createdAt,desc");
+                sort != null ? sort : "createdAt,desc");
     }
 
-    @McpTool(description = "Retrieve a single job application by its UUID.", name = "Get-Application")
+    @McpTool(
+            name = "Get-Application",
+            title = "Get Application",
+            description = "Fetch a single job application by UUID.",
+            annotations = @McpAnnotations(
+                    title = "Get Application",
+                    readOnlyHint = true,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = false),
+            generateOutputSchema = true)
     public ApplicationResponse getApplication(
-            @McpToolParam(description = "Application UUID") String id) {
+            @McpToolParam(required = true, description = "Application UUID") String id) {
         return applicationService.getById(UUID.fromString(id));
     }
 
-    @McpTool(description = "List applications with upcoming next-step reminders that have not yet passed.", name = "Get-Upcoming-Applications")
+    @McpTool(
+            name = "Get-Upcoming-Applications",
+            title = "Get Upcoming Applications",
+            description = "List applications with upcoming reminders that have not yet passed.",
+            annotations = @McpAnnotations(
+                    title = "Get Upcoming Applications",
+                    readOnlyHint = true,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = false),
+            generateOutputSchema = true)
     public List<ApplicationResponse> getUpcomingApplications() {
         return applicationService.getUpcoming();
     }
 
-    @McpTool(description = "List applications whose next-step deadline has passed with no status update.", name = "Get-Overdue-Applications")
+    @McpTool(
+            name = "Get-Overdue-Applications",
+            title = "Get Overdue Applications",
+            description = "List applications whose follow-up deadline has passed.",
+            annotations = @McpAnnotations(
+                    title = "Get Overdue Applications",
+                    readOnlyHint = true,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = false),
+            generateOutputSchema = true)
     public List<ApplicationResponse> getOverdueApplications() {
         return applicationService.getOverdue();
     }
 
     // --- Write tools ---
 
-    @McpTool(description = """
-            Create a new job application.
-            Required booleans: rhAcceptedConnection, interviewScheduled, recruiterDmReminderEnabled.
-            Optional: vacancyName, recruiterName, organization, vacancyLink,
-            applicationDate (yyyy-MM-dd), nextStepDateTime (yyyy-MM-ddTHH:mm:ss), status, note.
-            Field defaults and invariants: resource://job-apply-tracker/application-creation-rules.
-            Valid status values: resource://job-apply-tracker/application-statuses.
-            """, name = "Create-Application")
+    @McpTool(
+            name = "Create-Application",
+            title = "Create Application",
+            description = "Create a new job application record.",
+            annotations = @McpAnnotations(
+                    title = "Create Application",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = false,
+                    openWorldHint = false),
+            generateOutputSchema = true)
     public ApplicationResponse createApplication(
-            @McpToolParam(description = "Job title or vacancy name") String vacancyName,
-            @McpToolParam(description = "Recruiter name") String recruiterName,
-            @McpToolParam(description = "Company or organization name") String organization,
-            @McpToolParam(description = "URL to the vacancy posting") String vacancyLink,
-            @McpToolParam(description = "Date applied yyyy-MM-dd (null = today)") String applicationDate,
-            @McpToolParam(description = "Whether the recruiter accepted a LinkedIn connection") Boolean rhAcceptedConnection,
-            @McpToolParam(description = "Whether an interview has been scheduled") Boolean interviewScheduled,
-            @McpToolParam(description = "Next follow-up date/time yyyy-MM-ddTHH:mm:ss") String nextStepDateTime,
-            @McpToolParam(description = "Status display name — omit for no status") String status,
-            @McpToolParam(description = "Whether a DM reminder to the recruiter is enabled") Boolean recruiterDmReminderEnabled,
-            @McpToolParam(description = "Personal notes about this application") String note) {
+            @McpToolParam(required = false, description = "Job title or vacancy name") String vacancyName,
+            @McpToolParam(required = false, description = "Recruiter name") String recruiterName,
+            @McpToolParam(required = false, description = "Company or organization name") String organization,
+            @McpToolParam(required = false, description = "URL to the vacancy posting") String vacancyLink,
+            @McpToolParam(required = false, description = "Date applied yyyy-MM-dd (null = today)") String applicationDate,
+            @McpToolParam(required = true, description = "Whether the recruiter accepted a LinkedIn connection") Boolean rhAcceptedConnection,
+            @McpToolParam(required = true, description = "Whether an interview has been scheduled") Boolean interviewScheduled,
+            @McpToolParam(required = false, description = "Next follow-up date/time yyyy-MM-ddTHH:mm:ss") String nextStepDateTime,
+            @McpToolParam(required = false, description = "Status display name — omit for no status") String status,
+            @McpToolParam(required = true, description = "Whether a DM reminder to the recruiter is enabled") Boolean recruiterDmReminderEnabled,
+            @McpToolParam(required = false, description = "Personal notes about this application") String note) {
         return applicationService.create(new ApplicationRequest(
                 vacancyName,
                 recruiterName,
@@ -113,23 +148,30 @@ public class McpApplicationTools {
                 note));
     }
 
-    @McpTool(description = """
-            Update all fields of an existing job application.
-            Same field set as Create-Application. Invariants: resource://job-apply-tracker/application-creation-rules.
-            """, name = "Update-Application")
+    @McpTool(
+            name = "Update-Application",
+            title = "Update Application",
+            description = "Update all fields on an existing job application.",
+            annotations = @McpAnnotations(
+                    title = "Update Application",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = false,
+                    openWorldHint = false),
+            generateOutputSchema = true)
     public ApplicationResponse updateApplication(
-            @McpToolParam(description = "Application UUID to update") String id,
-            @McpToolParam(description = "Job title or vacancy name") String vacancyName,
-            @McpToolParam(description = "Recruiter name") String recruiterName,
-            @McpToolParam(description = "Company or organization name") String organization,
-            @McpToolParam(description = "URL to the vacancy posting") String vacancyLink,
-            @McpToolParam(description = "Date applied yyyy-MM-dd") String applicationDate,
-            @McpToolParam(description = "Whether the recruiter accepted a LinkedIn connection") Boolean rhAcceptedConnection,
-            @McpToolParam(description = "Whether an interview has been scheduled") Boolean interviewScheduled,
-            @McpToolParam(description = "Next follow-up date/time yyyy-MM-ddTHH:mm:ss") String nextStepDateTime,
-            @McpToolParam(description = "Status display name") String status,
-            @McpToolParam(description = "Whether a DM reminder to the recruiter is enabled") Boolean recruiterDmReminderEnabled,
-            @McpToolParam(description = "Personal notes about this application") String note) {
+            @McpToolParam(required = true, description = "Application UUID to update") String id,
+            @McpToolParam(required = false, description = "Job title or vacancy name") String vacancyName,
+            @McpToolParam(required = false, description = "Recruiter name") String recruiterName,
+            @McpToolParam(required = false, description = "Company or organization name") String organization,
+            @McpToolParam(required = false, description = "URL to the vacancy posting") String vacancyLink,
+            @McpToolParam(required = false, description = "Date applied yyyy-MM-dd") String applicationDate,
+            @McpToolParam(required = true, description = "Whether the recruiter accepted a LinkedIn connection") Boolean rhAcceptedConnection,
+            @McpToolParam(required = true, description = "Whether an interview has been scheduled") Boolean interviewScheduled,
+            @McpToolParam(required = false, description = "Next follow-up date/time yyyy-MM-ddTHH:mm:ss") String nextStepDateTime,
+            @McpToolParam(required = false, description = "Status display name") String status,
+            @McpToolParam(required = true, description = "Whether a DM reminder to the recruiter is enabled") Boolean recruiterDmReminderEnabled,
+            @McpToolParam(required = false, description = "Personal notes about this application") String note) {
         return applicationService.update(UUID.fromString(id), new ApplicationRequest(
                 vacancyName,
                 recruiterName,
@@ -144,38 +186,81 @@ public class McpApplicationTools {
                 note));
     }
 
-    @McpTool(description = """
-            Update only the status of a job application.
-            Valid status names: resource://job-apply-tracker/application-statuses.
-            """, name = "Update-Application-Status")
-    public void updateApplicationStatus(
-            @McpToolParam(description = "Application UUID") String id,
-            @McpToolParam(description = "New status display name") String status) {
-        applicationService.updateStatus(UUID.fromString(id), new UpdateStatusRequest(status));
+    @McpTool(
+            name = "Update-Application-Status",
+            title = "Update Application Status",
+            description = "Update only the status of an existing job application.",
+            annotations = @McpAnnotations(
+                    title = "Update Application Status",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = false,
+                    openWorldHint = false),
+            generateOutputSchema = true)
+    public ApplicationResponse updateApplicationStatus(
+            @McpToolParam(required = true, description = "Application UUID") String id,
+            @McpToolParam(required = true, description = "New status display name") String status) {
+        return applicationService.updateStatus(UUID.fromString(id), new UpdateStatusRequest(status));
     }
 
-    @McpTool(description = "Enable or disable the recruiter DM reminder for a job application.", name = "Update-Application-Reminder")
+    @McpTool(
+            name = "Update-Application-Reminder",
+            title = "Update Application Reminder",
+            description = "Enable or disable the recruiter DM reminder for an application.",
+            annotations = @McpAnnotations(
+                    title = "Update Application Reminder",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = false,
+                    openWorldHint = false))
     public void updateApplicationReminder(
-            @McpToolParam(description = "Application UUID") String id,
-            @McpToolParam(description = "true to enable the DM reminder, false to disable it") boolean enabled) {
+            @McpToolParam(required = true, description = "Application UUID") String id,
+            @McpToolParam(required = true, description = "true to enable the DM reminder, false to disable it") boolean enabled) {
         applicationService.updateReminder(UUID.fromString(id), new UpdateReminderRequest(enabled));
     }
 
-    @McpTool(description = "Mark that a LinkedIn DM was sent to the recruiter for a job application.", name = "Mark-Recruiter-DM-Sent")
+    @McpTool(
+            name = "Mark-Recruiter-DM-Sent",
+            title = "Mark Recruiter DM Sent",
+            description = "Record that a recruiter DM was sent for an application.",
+            annotations = @McpAnnotations(
+                    title = "Mark Recruiter DM Sent",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = false,
+                    openWorldHint = false))
     public void markRecruiterDmSent(
-            @McpToolParam(description = "Application UUID") String id) {
+            @McpToolParam(required = true, description = "Application UUID") String id) {
         applicationService.markDmSent(UUID.fromString(id), new MarkDmSentRequest());
     }
 
-    @McpTool(description = "Archive a job application so it is hidden from the default active list.", name = "Archive-Application")
+    @McpTool(
+            name = "Archive-Application",
+            title = "Archive Application",
+            description = "Archive an application so it is hidden from the default active list.",
+            annotations = @McpAnnotations(
+                    title = "Archive Application",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = false,
+                    openWorldHint = false))
     public void archiveApplication(
-            @McpToolParam(description = "Application UUID") String id) {
+            @McpToolParam(required = true, description = "Application UUID") String id) {
         applicationService.archive(UUID.fromString(id));
     }
 
-    @McpTool(description = "Permanently delete a job application.", name = "Delete-Application")
+    @McpTool(
+            name = "Delete-Application",
+            title = "Delete Application",
+            description = "Permanently delete an application.",
+            annotations = @McpAnnotations(
+                    title = "Delete Application",
+                    readOnlyHint = false,
+                    destructiveHint = true,
+                    idempotentHint = false,
+                    openWorldHint = false))
     public void deleteApplication(
-            @McpToolParam(description = "Application UUID") String id) {
+            @McpToolParam(required = true, description = "Application UUID") String id) {
         applicationService.delete(UUID.fromString(id));
     }
 }

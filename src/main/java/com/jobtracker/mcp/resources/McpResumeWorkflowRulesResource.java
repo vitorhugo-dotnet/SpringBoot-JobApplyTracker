@@ -1,16 +1,26 @@
 package com.jobtracker.mcp.resources;
 
 import com.jobtracker.mcp.McpResourcesConfig;
+import io.modelcontextprotocol.spec.McpSchema.Role;
 import org.springaicommunity.mcp.annotation.McpResource;
+import org.springaicommunity.mcp.annotation.McpResource.McpAnnotations;
 import org.springframework.stereotype.Service;
 
 @Service
 public class McpResumeWorkflowRulesResource {
 
+    private static final String LAST_MODIFIED = "2026-06-04";
+
     @McpResource(
             uri = McpResourcesConfig.URI_RESUME_WORKFLOW_RULES,
             name = "Resume Workflow Rules",
-            mimeType = "text/plain")
+            title = "Resume Workflow Rules",
+            description = "Markdown instructions for the resume tailoring workflow.",
+            mimeType = "text/markdown",
+            annotations = @McpAnnotations(
+                    audience = {Role.ASSISTANT},
+                    lastModified = LAST_MODIFIED,
+                    priority = 1.0d))
     public String resumeWorkflowRules() {
         return """
                 # Resume Workflow Rules

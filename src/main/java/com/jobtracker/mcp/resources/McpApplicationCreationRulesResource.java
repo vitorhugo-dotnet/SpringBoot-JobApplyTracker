@@ -1,16 +1,26 @@
 package com.jobtracker.mcp.resources;
 
 import com.jobtracker.mcp.McpResourcesConfig;
+import io.modelcontextprotocol.spec.McpSchema.Role;
 import org.springaicommunity.mcp.annotation.McpResource;
+import org.springaicommunity.mcp.annotation.McpResource.McpAnnotations;
 import org.springframework.stereotype.Service;
 
 @Service
 public class McpApplicationCreationRulesResource {
 
+    private static final String LAST_MODIFIED = "2026-06-04";
+
     @McpResource(
             uri = McpResourcesConfig.URI_APPLICATION_CREATION_RULES,
             name = "Application Creation Rules",
-            mimeType = "text/plain")
+            title = "Application Creation Rules",
+            description = "Markdown defaults and invariants for creating or updating applications.",
+            mimeType = "text/markdown",
+            annotations = @McpAnnotations(
+                    audience = {Role.ASSISTANT},
+                    lastModified = LAST_MODIFIED,
+                    priority = 1.0d))
     public String applicationCreationRules() {
         return """
                 # Application Creation Rules
