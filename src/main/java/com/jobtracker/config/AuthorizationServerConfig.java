@@ -14,16 +14,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
-import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcOperations;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.PreparedStatementSetter;
 
-import javax.sql.DataSource;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Proxy;
-import java.sql.PreparedStatement;
-import java.sql.Types;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
@@ -99,63 +91,18 @@ public class AuthorizationServerConfig {
     }
 
     @Bean
-    public OAuth2AuthorizationService authorizationService(
-            DataSource dataSource,
-            RegisteredClientRepository registeredClientRepository) {
-        // Spring AS calls jdbcTemplate.update(sql, LobCreatorArgumentPreparedStatementSetter),
-        // which eventually invokes ps.setObject(idx, value, Types.BLOB). MariaDB JDBC 3.x maps
-        // LONGBLOB as LONGVARBINARY (-4) and rejects the BLOB type code with "Could not convert
-        // to -4". We proxy the PreparedStatement so that any setObject(..., Types.BLOB) call is
-        // rewritten to setString / setBytes / setNull before it reaches the driver.
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource) {
-            @Override
-            public int update(String sql, PreparedStatementSetter pss) throws DataAccessException {
-                return super.update(sql, ps -> pss.setValues(blobRewritingProxy(ps)));
-            }
-
-            private PreparedStatement blobRewritingProxy(PreparedStatement target) {
-                return (PreparedStatement) Proxy.newProxyInstance(
-                        PreparedStatement.class.getClassLoader(),
-                        new Class<?>[]{ PreparedStatement.class },
-                        (proxy, method, args) -> {
-                            if ("setObject".equals(method.getName())
-                                    && args != null && args.length == 3
-                                    && args[2] instanceof Integer targetSqlType
-                                    && targetSqlType == Types.BLOB) {
-                                int idx = (int) args[0];
-                                Object value = args[1];
-                                if (value instanceof String str) {
-                                    target.setString(idx, str);
-                                } else if (value instanceof byte[] bytes) {
-                                    target.setBytes(idx, bytes);
-                                } else {
-                                    target.setNull(idx, Types.NULL);
-                                }
-                                return null;
-                            }
-                            try {
-                                return method.invoke(target, args);
-                            } catch (InvocationTargetException e) {
-                                throw e.getCause();
-                            }
-                        });
-            }
-        };
-        return new JdbcOAuth2AuthorizationService(jdbcTemplate, registeredClientRepository);
+    public OAuth2AuthorizationService authorizationService(JdbcOperations jdbcOperations, RegisteredClientRepository registeredClientRepository) {
+        return new JdbcOAuth2AuthorizationService(jdbcOperations, registeredClientRepository);
     }
 
     @Bean
-    public OAuth2AuthorizationConsentService authorizationConsentService(
-            JdbcOperations jdbcOperations,
-            RegisteredClientRepository registeredClientRepository) {
+    public OAuth2AuthorizationConsentService authorizationConsentService(JdbcOperations jdbcOperations, RegisteredClientRepository registeredClientRepository) {
         return new JdbcOAuth2AuthorizationConsentService(jdbcOperations, registeredClientRepository);
     }
 
     @Bean
     public AuthorizationServerSettings authorizationServerSettings(GptOAuthProperties properties) {
-        return AuthorizationServerSettings.builder()
-                .issuer(properties.normalizedIssuer())
-                .build();
+        return AuthorizationServerSettings.builder().issuer(properties.normalizedIssuer()).build();
     }
 
     @Bean
