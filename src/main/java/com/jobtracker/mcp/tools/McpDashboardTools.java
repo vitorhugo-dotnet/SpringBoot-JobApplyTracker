@@ -25,17 +25,17 @@ public class McpDashboardTools {
             Get pipeline summary statistics for the authenticated user:
             total applications, by-status breakdown, interview counts,
             overdue follow-ups, daily/weekly/monthly application rates.
-            """, name = "Get Pipeline Summary")
+            """, name = "getPipelineSummary")
     public DashboardSummaryResponse getPipelineSummary() {
         return dashboardService.getSummary();
     }
 
-    @Tool(description = "Get the authenticated user's gamification profile: XP, level, rank title, streak days.", name = "Get Gamification Profile")
+    @Tool(description = "Get the authenticated user's gamification profile: XP, level, rank title, streak days.", name = "getGamificationProfile")
     public GamificationProfileResponse getGamificationProfile() {
         return gamificationService.getProfile();
     }
 
-    @Tool(description = "List all gamification achievements with unlock status and timestamp.", name = "Get Achievements")
+    @Tool(description = "List all gamification achievements with unlock status and timestamp.", name = "getAchievements")
     public List<AchievementResponse> getAchievements() {
         return gamificationService.getAchievements();
     }

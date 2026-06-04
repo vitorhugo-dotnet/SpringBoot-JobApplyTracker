@@ -21,7 +21,7 @@ public class McpProfileTools {
             Get the authenticated user's profile: id, name, email, preferred daily reminder time,
             granted roles, and whether Google Drive integration features are available.
             """,
-            name = "Get Current User Profile")
+            name = "getCurrentUser")
     public UserResponse getCurrentUser() {
         return authMapper.toUserResponse(securityUtils.getCurrentUser());
     }
