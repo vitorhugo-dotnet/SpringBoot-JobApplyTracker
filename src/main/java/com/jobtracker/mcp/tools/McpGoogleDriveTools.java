@@ -50,8 +50,7 @@ public class McpGoogleDriveTools {
                     readOnlyHint = false,
                     destructiveHint = false,
                     idempotentHint = false,
-                    openWorldHint = true),
-            generateOutputSchema = true)
+                    openWorldHint = true))
     public GoogleDriveResumeCopyResponse copyResumeToApplication(
             @McpToolParam(required = true, description = "UUID of the job application") String applicationId,
             @McpToolParam(required = true, description = "UUID of the base resume template to copy") String baseResumeId) {
@@ -69,8 +68,7 @@ public class McpGoogleDriveTools {
                     readOnlyHint = true,
                     destructiveHint = false,
                     idempotentHint = true,
-                    openWorldHint = true),
-            generateOutputSchema = true)
+                    openWorldHint = true))
     public ResumePlaceholderDetectionResponse detectResumePlaceholders(
             @McpToolParam(required = true, description = "UUID of the base resume (not the filename)") String baseResumeId) {
         return resumeGenerationService.detectPlaceholders(UUID.fromString(baseResumeId));
@@ -85,8 +83,7 @@ public class McpGoogleDriveTools {
                     readOnlyHint = false,
                     destructiveHint = false,
                     idempotentHint = false,
-                    openWorldHint = true),
-            generateOutputSchema = true)
+                    openWorldHint = true))
     public ResumePlaceholderResponse generateResume(
             @McpToolParam(required = true, description = "UUID of the job application") String applicationId,
             @McpToolParam(required = true, description = "UUID of the base resume template to use") String baseResumeId,
@@ -106,8 +103,7 @@ public class McpGoogleDriveTools {
                     readOnlyHint = true,
                     destructiveHint = false,
                     idempotentHint = true,
-                    openWorldHint = true),
-            generateOutputSchema = true)
+                    openWorldHint = true))
     public GeneratedResumePdf downloadGeneratedResumePdf(
             @McpToolParam(required = true, description = "UUID of the job application") String applicationId) {
         DownloadedFile file = generatedResumeDownloadService.downloadAsPdf(UUID.fromString(applicationId));

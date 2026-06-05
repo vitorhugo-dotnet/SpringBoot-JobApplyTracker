@@ -37,8 +37,7 @@ public class McpApplicationTools {
                     readOnlyHint = true,
                     destructiveHint = false,
                     idempotentHint = true,
-                    openWorldHint = false),
-            generateOutputSchema = true)
+                    openWorldHint = false))
     public ApplicationPageResponse listApplications(
             @McpToolParam(required = false, description = "Status filter — display name, e.g. 'RH' or 'Teste Técnico'") String status,
             @McpToolParam(required = false, description = "Recruiter name partial match") String recruiterName,
@@ -72,8 +71,7 @@ public class McpApplicationTools {
                     readOnlyHint = true,
                     destructiveHint = false,
                     idempotentHint = true,
-                    openWorldHint = false),
-            generateOutputSchema = true)
+                    openWorldHint = false))
     public ApplicationResponse getApplication(
             @McpToolParam(required = true, description = "Application UUID") String id) {
         return applicationService.getById(UUID.fromString(id));
@@ -88,8 +86,7 @@ public class McpApplicationTools {
                     readOnlyHint = true,
                     destructiveHint = false,
                     idempotentHint = true,
-                    openWorldHint = false),
-            generateOutputSchema = true)
+                    openWorldHint = false))
     public List<ApplicationResponse> getUpcomingApplications() {
         return applicationService.getUpcoming();
     }
@@ -103,8 +100,7 @@ public class McpApplicationTools {
                     readOnlyHint = true,
                     destructiveHint = false,
                     idempotentHint = true,
-                    openWorldHint = false),
-            generateOutputSchema = true)
+                    openWorldHint = false))
     public List<ApplicationResponse> getOverdueApplications() {
         return applicationService.getOverdue();
     }
@@ -120,8 +116,7 @@ public class McpApplicationTools {
                     readOnlyHint = false,
                     destructiveHint = false,
                     idempotentHint = false,
-                    openWorldHint = false),
-            generateOutputSchema = true)
+                    openWorldHint = false))
     public ApplicationResponse createApplication(
             @McpToolParam(required = false, description = "Job title or vacancy name") String vacancyName,
             @McpToolParam(required = false, description = "Recruiter name") String recruiterName,
@@ -157,8 +152,7 @@ public class McpApplicationTools {
                     readOnlyHint = false,
                     destructiveHint = false,
                     idempotentHint = false,
-                    openWorldHint = false),
-            generateOutputSchema = true)
+                    openWorldHint = false))
     public ApplicationResponse updateApplication(
             @McpToolParam(required = true, description = "Application UUID to update") String id,
             @McpToolParam(required = false, description = "Job title or vacancy name") String vacancyName,
@@ -195,8 +189,7 @@ public class McpApplicationTools {
                     readOnlyHint = false,
                     destructiveHint = false,
                     idempotentHint = false,
-                    openWorldHint = false),
-            generateOutputSchema = true)
+                    openWorldHint = false))
     public ApplicationResponse updateApplicationStatus(
             @McpToolParam(required = true, description = "Application UUID") String id,
             @McpToolParam(required = true, description = "New status display name") String status) {
