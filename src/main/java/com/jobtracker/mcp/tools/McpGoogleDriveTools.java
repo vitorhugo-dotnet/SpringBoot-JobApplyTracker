@@ -1,5 +1,6 @@
 package com.jobtracker.mcp.tools;
 
+import com.jobtracker.dto.gdrive.BaseResumeResponse;
 import com.jobtracker.dto.gdrive.GoogleDriveResumeCopyRequest;
 import com.jobtracker.dto.gdrive.GoogleDriveResumeCopyResponse;
 import com.jobtracker.dto.gdrive.ResumePlaceholderDetectionResponse;
@@ -16,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
 
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -42,9 +44,42 @@ public class McpGoogleDriveTools {
     }
 
     @McpTool(
+            name = "List-Base-Resumes",
+            title = "List Base Resumes",
+            description = """
+                    List all Google Docs base resume templates configured by the current user.
+
+                    Each entry contains:
+                    - id (UUID): the baseResumeId required by Copy-Resume-To-Application, Generate-Resume, \
+                    and Detect-Resume-Placeholders. Never use a Google Drive fileId here.
+                    - name: display name of the document (e.g. "BASE - CV - Vitor Hugo PT-BR").
+                    - language: language code of the resume (e.g. "PT", "EN"). Use to select the correct \
+                    template for the vacancy language (PT → PT-BR template, EN → EN-US template).
+                    - template: true if this is a reusable placeholder template.
+                    - createdAt: registration timestamp.
+
+                    Call this tool before any resume operation to obtain a valid baseResumeId.""",
+            annotations = @McpAnnotations(
+                    title = "List Base Resumes",
+                    readOnlyHint = true,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = false))
+    public List<BaseResumeResponse> listBaseResumes() {
+        return googleDriveService.listBaseResumes();
+    }
+
+    @McpTool(
             name = "Copy-Resume-To-Application",
             title = "Copy Resume To Application",
-            description = "Copy a base resume template into an application folder and return the new Google Doc link.",
+            description = """
+                    Copy a base resume template into the application's Google Drive folder and return \
+                    the new Google Doc link and folder details.
+
+                    Use List-Base-Resumes to obtain a valid baseResumeId before calling this tool. \
+                    The baseResumeId is a Job Apply Tracker UUID — it is NOT a Google Drive file ID. \
+                    The application folder is created automatically inside the configured Drive root folder \
+                    if it does not yet exist.""",
             annotations = @McpAnnotations(
                     title = "Copy Resume To Application",
                     readOnlyHint = false,
@@ -52,8 +87,8 @@ public class McpGoogleDriveTools {
                     idempotentHint = false,
                     openWorldHint = true))
     public GoogleDriveResumeCopyResponse copyResumeToApplication(
-            @McpToolParam(required = true, description = "UUID of the job application") String applicationId,
-            @McpToolParam(required = true, description = "UUID of the base resume template to copy") String baseResumeId) {
+            @McpToolParam(required = true, description = "UUID of the job application (from Create-Application or List-Applications)") String applicationId,
+            @McpToolParam(required = true, description = "UUID of the base resume template — obtain from List-Base-Resumes, NOT a Google Drive file ID") String baseResumeId) {
         return googleDriveService.copyBaseResumeToApplication(
                 UUID.fromString(applicationId),
                 new GoogleDriveResumeCopyRequest(UUID.fromString(baseResumeId)));
@@ -62,7 +97,13 @@ public class McpGoogleDriveTools {
     @McpTool(
             name = "Detect-Resume-Placeholders",
             title = "Detect Resume Placeholders",
-            description = "Detect placeholder names present in a base resume template.",
+            description = """
+                    Scan a base resume template and return the list of placeholder names found inside \
+                    double curly braces (e.g. {{RESUMO}}, {{STACK}}).
+
+                    Always call this before Generate-Resume so you know which keys to supply. \
+                    Use List-Base-Resumes to obtain the baseResumeId. \
+                    The returned placeholder names must be used without braces as keys in Generate-Resume.""",
             annotations = @McpAnnotations(
                     title = "Detect Resume Placeholders",
                     readOnlyHint = true,
@@ -70,14 +111,25 @@ public class McpGoogleDriveTools {
                     idempotentHint = true,
                     openWorldHint = true))
     public ResumePlaceholderDetectionResponse detectResumePlaceholders(
-            @McpToolParam(required = true, description = "UUID of the base resume (not the filename)") String baseResumeId) {
+            @McpToolParam(required = true, description = "UUID of the base resume template — obtain from List-Base-Resumes") String baseResumeId) {
         return resumeGenerationService.detectPlaceholders(UUID.fromString(baseResumeId));
     }
 
     @McpTool(
             name = "Generate-Resume",
             title = "Generate Resume",
-            description = "Generate a tailored resume by copying a template and replacing its placeholders.",
+            description = """
+                    Copy a base resume template into the application's Drive folder, replace all \
+                    placeholders with the supplied values, export a PDF, and return links to both \
+                    the Google Doc and the PDF.
+
+                    Prerequisites (call in order before this tool):
+                    1. List-Base-Resumes — obtain the baseResumeId for the vacancy language.
+                    2. Detect-Resume-Placeholders — retrieve the exact placeholder key names.
+                    3. Provide a value for every detected placeholder key (keys without braces, \
+                       e.g. "RESUMO", "STACK", "PROJETO_1").
+
+                    Do NOT call this tool before Create-Application — you need the applicationId first.""",
             annotations = @McpAnnotations(
                     title = "Generate Resume",
                     readOnlyHint = false,
@@ -85,9 +137,9 @@ public class McpGoogleDriveTools {
                     idempotentHint = false,
                     openWorldHint = true))
     public ResumePlaceholderResponse generateResume(
-            @McpToolParam(required = true, description = "UUID of the job application") String applicationId,
-            @McpToolParam(required = true, description = "UUID of the base resume template to use") String baseResumeId,
-            @McpToolParam(required = true, description = "Placeholder values keyed by name without braces, e.g. {\"RESUMO\":\"...\"}")
+            @McpToolParam(required = true, description = "UUID of the job application — must already exist (from Create-Application)") String applicationId,
+            @McpToolParam(required = true, description = "UUID of the base resume template — obtain from List-Base-Resumes, NOT a Google Drive file ID") String baseResumeId,
+            @McpToolParam(required = true, description = "Placeholder values keyed by the exact names returned by Detect-Resume-Placeholders (without braces), e.g. {\"RESUMO\":\"...\", \"STACK\":\"Java, Spring Boot\"}")
             Map<String, String> values) {
         return resumeGenerationService.generateTemplateResume(
                 UUID.fromString(applicationId),

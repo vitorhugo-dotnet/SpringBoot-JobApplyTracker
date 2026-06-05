@@ -29,7 +29,8 @@ public class McpResumeWorkflowRulesResource {
 
                 1. List-Applications — find the newest application with a non-empty driveResumeFileId.
                 2. Read resource://job-apply-tracker/generated-resume/{applicationId} — use that resume as the real CV source.
-                3. Read resource://job-apply-tracker/base-resumes — pick the template by vacancy language (PT -> PT-BR, EN -> EN-US).
+                3. Call List-Base-Resumes — pick the template by vacancy language (PT → PT-BR template, EN → EN-US template).
+                   Alternatively read resource://job-apply-tracker/base-resumes if the tool is unavailable.
                 4. Detect-Resume-Placeholders — call this before Generate-Resume every time.
                 5. Ask only for missing information that is required to fill placeholders or log the application.
                 6. Create-Application — save the application before generating the tailored resume.
@@ -44,8 +45,10 @@ public class McpResumeWorkflowRulesResource {
                 - If Generate-Resume fails, keep the application record and return the placeholder values.
 
                 ID disambiguation:
-                - baseResumeId: a Job Apply Tracker UUID from resource://job-apply-tracker/base-resumes.
-                - Google Drive fileId: a Drive string from Google Drive. These are not interchangeable.
+                - baseResumeId: a Job Apply Tracker UUID returned by List-Base-Resumes or
+                  resource://job-apply-tracker/base-resumes. This is NOT a Google Drive fileId.
+                - Google Drive fileId: a Drive string (e.g. "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms").
+                  These two IDs are not interchangeable — always use the Job Apply Tracker UUID.
                 """;
     }
 }

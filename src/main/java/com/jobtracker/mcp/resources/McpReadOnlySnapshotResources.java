@@ -103,7 +103,7 @@ public class McpReadOnlySnapshotResources {
             uri = McpResourcesConfig.URI_BASE_RESUMES,
             name = "Base Resumes",
             title = "Base Resumes",
-            description = "JSON list of configured base resume templates.",
+            description = "JSON list of configured Google Docs base resume templates. Each entry includes the UUID (id) required by Copy-Resume-To-Application, Generate-Resume, and Detect-Resume-Placeholders; the display name; the language code (e.g. PT, EN) used to select the correct template for the vacancy language; and whether it is a reusable placeholder template. Alternatively, call the List-Base-Resumes tool to fetch the same data.",
             mimeType = "application/json",
             annotations = @McpAnnotations(
                     audience = {Role.USER, Role.ASSISTANT},

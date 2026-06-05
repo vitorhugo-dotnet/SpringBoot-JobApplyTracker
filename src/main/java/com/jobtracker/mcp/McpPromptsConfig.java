@@ -60,11 +60,12 @@ public class McpPromptsConfig {
                 NEVER invent experience, technologies, projects, or certifications.
 
                 STEP 3 - List and select a CV template
-                Read resource://job-apply-tracker/base-resumes. Select by language (PT→PT-BR; EN→EN-US).
-                Do not ask if there is only one per language.
+                Call List-Base-Resumes. Select by language field (PT→PT-BR template; EN→EN-US template).
+                Do not ask if there is only one template per language.
 
                 STEP 4 - Detect placeholders
-                Call Detect-Resume-Placeholders with the selected baseResumeId (see resume-workflow-rules).
+                Call Detect-Resume-Placeholders with the baseResumeId obtained in STEP 3 (see resume-workflow-rules).
+                The baseResumeId is the UUID from List-Base-Resumes — it is NOT a Google Drive fileId.
 
                 STEP 5 - Minimum questions (only if needed)
                 Ask ONLY if a piece of information is missing from both the real CV AND the vacancy, and is required
@@ -177,10 +178,11 @@ public class McpPromptsConfig {
         String text = """
                 I want to tailor a resume for job application ID: %s
 
-                1. Call `Get-Application` with id="%s" to see the vacancy name and organization.
-                2. Read `resource://job-apply-tracker/base-resumes` to see available resume templates.
-                3. Ask me which base resume template to use if more than one exists.
-                4. Call `Copy-Resume-To-Application` with the applicationId and the chosen baseResumeId.
+                1. Call `Get-Application` with id="%s" to see the vacancy name, organization, and language context.
+                2. Call `List-Base-Resumes` to see all available resume templates with their UUIDs and language codes.
+                3. Select the template matching the vacancy language (PT → PT-BR, EN → EN-US).
+                   Ask me which template to use only if the choice is ambiguous.
+                4. Call `Copy-Resume-To-Application` with the applicationId and the chosen baseResumeId (UUID from List-Base-Resumes).
                 5. Return the Google Docs link from the response so I can start editing.
                 """.formatted(applicationId, applicationId);
 
