@@ -63,24 +63,27 @@ class InterviewMetricsServiceTest {
     }
 
     @Test
-    void recordStatusTransition_shouldLogEventWhenEnteringInterviewStatus() {
+    void recordStatusTransition_shouldIncrementCountAndLogEventWhenEnteringInterviewStatus() {
         service.recordStatusTransition(application, ApplicationStatus.RH, ApplicationStatus.TESTE_TECNICO);
 
+        assertThat(application.getInterviewCount()).isEqualTo(1);
         verify(eventRepository).save(any());
     }
 
     @Test
-    void recordStatusTransition_shouldNotLogWhenStayingWithinInterviewStatuses() {
+    void recordStatusTransition_shouldNotIncrementWhenStayingWithinInterviewStatuses() {
         service.recordStatusTransition(application, ApplicationStatus.TESTE_TECNICO, ApplicationStatus.RH_NEGOCIACAO);
 
+        assertThat(application.getInterviewCount()).isEqualTo(0);
         verify(eventRepository, never()).save(any());
     }
 
     @Test
-    void recordStatusTransition_shouldNotLogForNonInterviewTransitions() {
+    void recordStatusTransition_shouldNotIncrementForNonInterviewTransitions() {
         service.recordStatusTransition(application, ApplicationStatus.TESTE_TECNICO, ApplicationStatus.TESTE_TECNICO);
         service.recordStatusTransition(application, ApplicationStatus.RH, ApplicationStatus.REJEITADO);
 
+        assertThat(application.getInterviewCount()).isEqualTo(0);
         verify(eventRepository, never()).save(any());
     }
 }
