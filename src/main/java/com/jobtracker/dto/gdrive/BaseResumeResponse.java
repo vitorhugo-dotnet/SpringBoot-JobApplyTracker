@@ -20,6 +20,9 @@ public record BaseResumeResponse(
         @Schema(description = "Whether this resume is a reusable template", example = "true")
         boolean template,
 
+        @Schema(description = "Whether this resume is read-only (PDF file — cannot be used for generation, placeholder detection, or copying)", example = "false")
+        boolean readOnly,
+
         @Schema(description = "Timestamp when this base resume was registered")
         LocalDateTime createdAt
 ) {}

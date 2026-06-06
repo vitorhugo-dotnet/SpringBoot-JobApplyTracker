@@ -101,7 +101,16 @@ public class GoogleDriveGeneratedResumeDownloadService {
                 .findByIdAndConnectionUserId(baseResumeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Base resume not found with id: " + baseResumeId));
 
-        byte[] content = exportDocument(connection.getAccessToken(), baseResume.getGoogleFileId(), exportMimeType);
+        if (baseResume.isReadOnly() && DOCX_MIME_TYPE.equals(exportMimeType)) {
+            throw new BadRequestException("Cannot download a PDF resume as DOCX");
+        }
+
+        byte[] content;
+        if (baseResume.isReadOnly()) {
+            content = googleDriveApiClient.downloadFileBytes(connection.getAccessToken(), baseResume.getGoogleFileId());
+        } else {
+            content = exportDocument(connection.getAccessToken(), baseResume.getGoogleFileId(), exportMimeType);
+        }
         String fileName = buildDownloadFileName(baseResume.getDocumentName(), extension);
 
         return new DownloadedFile(fileName, exportMimeType, content);
