@@ -47,7 +47,7 @@ public class McpGoogleDriveTools {
             name = "List-Base-Resumes",
             title = "List Base Resumes",
             description = """
-                    List all Google Docs base resume templates configured by the current user.
+                    List all base resume templates configured by the current user.
 
                     Each entry contains:
                     - id (UUID): the baseResumeId required by Copy-Resume-To-Application, Generate-Resume, \
@@ -56,6 +56,9 @@ public class McpGoogleDriveTools {
                     - language: language code of the resume (e.g. "PT", "EN"). Use to select the correct \
                     template for the vacancy language (PT → PT-BR template, EN → EN-US template).
                     - template: true if this is a reusable placeholder template.
+                    - readOnly: true if this is a read-only PDF resume (cannot be used for template \
+                    generation, placeholder detection, or copying to applications — only content \
+                    reading is supported).
                     - createdAt: registration timestamp.
 
                     Call this tool before any resume operation to obtain a valid baseResumeId.""",

@@ -283,6 +283,17 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
         });
     }
 
+    @Override
+    public byte[] downloadFileBytes(String accessToken, String fileId) {
+        return executeDriveOp(accessToken, "download file", drive -> {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            drive.files().get(fileId)
+                    .setSupportsAllDrives(true)
+                    .executeMediaAndDownloadTo(outputStream);
+            return outputStream.toByteArray();
+        });
+    }
+
     // ── internal helpers ─────────────────────────────────────────────────────
 
     @FunctionalInterface

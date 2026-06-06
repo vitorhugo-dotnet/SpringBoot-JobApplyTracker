@@ -8,6 +8,8 @@ import com.jobtracker.dto.application.UpdateReminderRequest;
 import com.jobtracker.dto.application.UpdateStatusRequest;
 import com.jobtracker.mcp.tools.McpApplicationTools;
 import com.jobtracker.service.ApplicationService;
+import com.jobtracker.service.ToolMetricsCollector;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -19,10 +21,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -32,8 +36,17 @@ class McpApplicationToolsTest {
     @Mock
     private ApplicationService applicationService;
 
+    @Mock
+    private ToolMetricsCollector metricsCollector;
+
     @InjectMocks
     private McpApplicationTools tools;
+
+    @BeforeEach
+    void setUp() {
+        lenient().doAnswer(inv -> inv.<Supplier<?>>getArgument(2).get())
+                 .when(metricsCollector).measure(any(), any(), any());
+    }
 
     @Test
     void listApplications_allNullParams_usesDefaults() {

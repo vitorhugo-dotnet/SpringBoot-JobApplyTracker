@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.UUID;
 
-@Schema(description = "Base resume metadata and plain text content extracted from Google Docs. " +
+@Schema(description = "Base resume metadata and plain text content extracted from Google Docs or PDF. " +
         "Template placeholders such as {{SUMMARY}} and {{SKILLS}} are preserved as-is for AI analysis.")
 public record BaseResumeContentResponse(
         @Schema(description = "UUID of the base resume. Use this ID in API calls — filenames and Google file IDs are NOT valid here.",
@@ -20,7 +20,10 @@ public record BaseResumeContentResponse(
         @Schema(description = "Whether this resume is a reusable template", example = "true")
         boolean template,
 
-        @Schema(description = "Plain text content extracted from the Google Docs document. " +
+        @Schema(description = "Whether this resume is read-only (PDF file — content extracted from the PDF)", example = "false")
+        boolean readOnly,
+
+        @Schema(description = "Plain text content extracted from the Google Docs document or PDF. " +
                 "Template placeholders such as {{SUMMARY}} and {{SKILLS}} are preserved.")
         String content
 ) {}

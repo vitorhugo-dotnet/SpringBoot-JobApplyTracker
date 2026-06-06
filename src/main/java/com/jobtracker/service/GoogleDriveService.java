@@ -87,9 +87,12 @@ public class GoogleDriveService {
         String documentId = extractGoogleFileId(request.documentIdOrUrl());
 
         GoogleDriveApiClient.DriveFileMetadata file = googleDriveApiClient.getFileMetadata(connection.getAccessToken(), documentId);
-        if (!GoogleDriveApiClient.GOOGLE_DOC_MIME_TYPE.equals(file.mimeType())) {
-            throw new BadRequestException("Only Google Docs base resumes are supported");
+        if (!GoogleDriveApiClient.GOOGLE_DOC_MIME_TYPE.equals(file.mimeType()) &&
+                !GoogleDriveApiClient.PDF_MIME_TYPE.equals(file.mimeType())) {
+            throw new BadRequestException("Only Google Docs documents and PDF files are supported as base resumes");
         }
+
+        boolean isReadOnly = GoogleDriveApiClient.PDF_MIME_TYPE.equals(file.mimeType());
 
         GoogleDriveBaseResume resume = baseResumeRepository
                 .findByConnectionIdAndGoogleFileId(connection.getId(), file.id())
@@ -100,7 +103,8 @@ public class GoogleDriveService {
         resume.setDocumentName(file.name());
         resume.setWebViewLink(resolveDocumentLink(file));
         resume.setLanguage(request.language());
-        resume.setTemplate(request.template());
+        resume.setTemplate(isReadOnly ? false : request.template());
+        resume.setReadOnly(isReadOnly);
         try {
             GoogleDriveBaseResume saved = baseResumeRepository.save(resume);
             return toBaseResumeResponse(saved);
@@ -142,6 +146,10 @@ public class GoogleDriveService {
 
         GoogleDriveBaseResume baseResume = baseResumeRepository.findByIdAndConnectionUserId(request.baseResumeId(), userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Base resume not found with id: " + request.baseResumeId()));
+
+        if (baseResume.isReadOnly()) {
+            throw new BadRequestException("Cannot copy a read-only PDF resume to an application. Use a Google Docs template instead.");
+        }
 
         GoogleDriveApiClient.DriveFileMetadata rootFolder =
                 googleDriveApiClient.getFileMetadata(connection.getAccessToken(), connection.getRootFolderId());
@@ -275,6 +283,7 @@ public class GoogleDriveService {
                 resume.getGoogleFileId(),
                 resume.getDocumentName(),
                 resume.getWebViewLink(),
+                resume.isReadOnly(),
                 resume.getCreatedAt()
         );
     }
@@ -285,6 +294,7 @@ public class GoogleDriveService {
                 resume.getDocumentName(),
                 resume.getLanguage(),
                 resume.isTemplate(),
+                resume.isReadOnly(),
                 resume.getCreatedAt()
         );
     }

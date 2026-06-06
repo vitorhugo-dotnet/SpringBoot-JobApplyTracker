@@ -104,6 +104,11 @@ public class RetryingGoogleDriveApiClient implements GoogleDriveApiClient {
         return delegate.exportGoogleDocAsPdf(accessToken, documentId, targetFolderId, pdfName);
     }
 
+    @Override
+    public byte[] downloadFileBytes(String accessToken, String fileId) {
+        return delegate.downloadFileBytes(accessToken, fileId);
+    }
+
     @Transactional
     private GoogleDriveConnection refreshCurrentUserConnection() {
         if (!googleDriveProperties.isConfigured()) {

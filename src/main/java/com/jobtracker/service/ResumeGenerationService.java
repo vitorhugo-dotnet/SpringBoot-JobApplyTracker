@@ -14,10 +14,14 @@ import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.GoogleDriveBaseResumeRepository;
 import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.util.SecurityUtils;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -57,6 +61,11 @@ public class ResumeGenerationService {
         UUID userId = securityUtils.getCurrentUserId();
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
         GoogleDriveBaseResume baseResume = getBaseResume(baseResumeId, userId);
+
+        if (baseResume.isReadOnly()) {
+            throw new BadRequestException("Cannot detect placeholders in a read-only PDF resume");
+        }
+
         String documentText = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), baseResume.getGoogleFileId());
 
         return new ResumePlaceholderDetectionResponse(
@@ -70,13 +79,22 @@ public class ResumeGenerationService {
         UUID userId = securityUtils.getCurrentUserId();
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
         GoogleDriveBaseResume baseResume = getBaseResume(resumeId, userId);
-        String content = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), baseResume.getGoogleFileId());
+
+        String content;
+        if (baseResume.isReadOnly()) {
+            byte[] pdfBytes = googleDriveApiClient.downloadFileBytes(connection.getAccessToken(), baseResume.getGoogleFileId());
+            content = extractTextFromPdf(pdfBytes);
+        } else {
+            content = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), baseResume.getGoogleFileId());
+        }
+
         connectionRepository.save(connection);
         return new BaseResumeContentResponse(
                 baseResume.getId(),
                 baseResume.getDocumentName(),
                 baseResume.getLanguage(),
                 baseResume.isTemplate(),
+                baseResume.isReadOnly(),
                 content
         );
     }
@@ -109,6 +127,10 @@ public class ResumeGenerationService {
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
         JobApplication application = applicationRepository.findByIdAndUserId(applicationId, userId).orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
         GoogleDriveBaseResume baseResume = getBaseResume(request.baseResumeId(), userId);
+
+        if (baseResume.isReadOnly()) {
+            throw new BadRequestException("Cannot generate a resume from a read-only PDF resume. Use a Google Docs template instead.");
+        }
 
         if (!StringUtils.hasText(connection.getRootFolderId())) {
             throw new BadRequestException("Configure a Google Drive root folder before generating resumes");
@@ -181,6 +203,15 @@ public class ResumeGenerationService {
             }
         }
         return List.copyOf(placeholders);
+    }
+
+    private String extractTextFromPdf(byte[] pdfBytes) {
+        try (PDDocument document = Loader.loadPDF(pdfBytes)) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            return stripper.getText(document);
+        } catch (IOException ex) {
+            throw new BadRequestException("Failed to extract text from PDF resume: " + ex.getMessage());
+        }
     }
 
     private GoogleDriveBaseResume getBaseResume(UUID baseResumeId, UUID userId) {
