@@ -49,8 +49,14 @@ public class McpPromptsConfig {
                 STEP 1 - Analyze the vacancy
                 Extract: vacancyName (title), organization (company), vacancyLink (URL if present),
                 required stack, seniority, vacancy language, recruiter name/email if present.
+               
+                STEP 2 - Check for existing application
+                Call List-Applications with the extracted vacancyName, organization, recruiter name/email to check for an existing application.
+                If an application with the same vacancyName and organization exists,
+                return a message indicating that an application already exists and provide its UUID. Do not proceed with the workflow if a duplicate application is
+                found. If no duplicate application exists, proceed to the next step.
 
-                STEP 2 - Read my REAL resume (required before generating any content)
+                STEP 3 - Read my REAL resume (required before generating any content)
                 - Call List-Applications and select the most recent application with driveResumeFileId populated.
                 - If such an application exists, read resource://job-apply-tracker/generated-resume/{applicationId}
                   for the selected application and use that text as the real CV source.
@@ -59,36 +65,36 @@ public class McpPromptsConfig {
                 Extract: experience, real stack, projects, education, certifications, achievements, languages.
                 NEVER invent experience, technologies, projects, or certifications.
 
-                STEP 3 - List and select a CV template
+                STEP 4 - List and select a CV template
                 Call List-Base-Resumes. Select by language field (PT→PT-BR template; EN→EN-US template).
                 Do not ask if there is only one template per language.
 
-                STEP 4 - Detect placeholders
+                STEP 5 - Detect placeholders
                 Call Detect-Resume-Placeholders with the baseResumeId obtained in STEP 3 (see resume-workflow-rules).
                 The baseResumeId is the UUID from List-Base-Resumes — it is NOT a Google Drive fileId.
 
-                STEP 5 - Minimum questions (only if needed)
-                Ask ONLY if a piece of information is missing from both the real CV AND the vacancy, and is required
-                for a placeholder or the record. Never ask about technologies or background.
+                STEP 6 - Questions
+                Ask ONLY if a piece of information is missing from both the real CV AND the vacancy.
+                Be it stack, seniority, projects, or even the vacancy name or organization. Always cross-check between CV and vacancy before asking.
 
-                STEP 6 - Generate placeholder values
+                STEP 7 - Generate placeholder values
                 Cross-check the real CV (step 2) with the vacancy requirements (step 1). ATS-friendly, without inventing anything.
                 Follow resume-workflow-rules for completeness and key formatting.
 
-                STEP 7 - Create the application
+                STEP 8 - Create the application
                 Follow application-creation-rules. Call Create-Application with the extracted data.
                 Do NOT fill nextStepDateTime.
                 Note: ATS-focused summary (stack, seniority, fit, gaps).
 
-                STEP 8 - Generate the filled CV
+                STEP 9 - Generate the filled CV
                 Only after Create-Application returns a valid UUID AND all placeholders are generated.
                 Follow resume-workflow-rules. Call Generate-Resume and return the Google Doc link.
 
-                STEP 9 - Final delivery (in PT-BR)
+                STEP 10 - Final delivery (in PT-BR)
                 1. Link to the generated CV
                 2. Detected placeholders + generated value for each one
                 3. UUID and status of the created application
-                """.formatted(
+               \s""".formatted(
                 McpResourcesConfig.URI_APPLICATION_CREATION_RULES,
                 McpResourcesConfig.URI_RESUME_WORKFLOW_RULES,
                 McpResourcesConfig.URI_APPLICATION_STATUSES,
