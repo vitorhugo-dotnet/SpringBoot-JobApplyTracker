@@ -35,6 +35,9 @@ public class GoogleDriveBaseResume {
     @Column(name = "is_template", nullable = false)
     private boolean template;
 
+    @Column(name = "read_only", nullable = false)
+    private boolean readOnly;
+
     @Column(name = "web_view_link", length = 2048)
     private String webViewLink;
 
@@ -101,6 +104,14 @@ public class GoogleDriveBaseResume {
 
     public void setTemplate(boolean template) {
         this.template = template;
+    }
+
+    public boolean isReadOnly() {
+        return readOnly;
+    }
+
+    public void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
     }
 
     public String getWebViewLink() {

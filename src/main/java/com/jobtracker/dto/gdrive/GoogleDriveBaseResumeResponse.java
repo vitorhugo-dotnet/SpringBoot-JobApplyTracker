@@ -11,5 +11,6 @@ public record GoogleDriveBaseResumeResponse(
         String googleFileId,
         String documentName,
         String webViewLink,
+        boolean readOnly,
         LocalDateTime createdAt
 ) {}

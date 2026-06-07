@@ -168,6 +168,20 @@
             <artifactId>jsoup</artifactId>
             <version>1.17.2</version>
         </dependency>
+
+        <!-- JTokkit — CL100K_BASE token estimation for MCP tool metrics -->
+        <dependency>
+            <groupId>com.knuddels</groupId>
+            <artifactId>jtokkit</artifactId>
+            <version>1.1.0</version>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
@@ -218,6 +232,13 @@
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
             <version>1.25.0</version>
+        </dependency>
+
+        <!-- Apache PDFBox — PDF text extraction for read-only PDF base resumes -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.4</version>
         </dependency>
 
         <!-- Test -->

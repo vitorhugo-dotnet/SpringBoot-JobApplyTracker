@@ -8,6 +8,7 @@ public interface GoogleDriveApiClient {
 
     String GOOGLE_DOC_MIME_TYPE = "application/vnd.google-apps.document";
     String GOOGLE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
+    String PDF_MIME_TYPE = "application/pdf";
 
     String buildAuthorizationUrl(String state);
 
@@ -30,6 +31,8 @@ public interface GoogleDriveApiClient {
     void replaceGoogleDocPlaceholders(String accessToken, String documentId, Map<String, String> values);
 
     DriveFileMetadata exportGoogleDocAsPdf(String accessToken, String documentId, String targetFolderId, String pdfName);
+
+    byte[] downloadFileBytes(String accessToken, String fileId);
 
     record OAuthTokens(String accessToken, String refreshToken, LocalDateTime accessTokenExpiresAt, String scope) {}
 

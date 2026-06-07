@@ -3,7 +3,9 @@ package com.jobtracker.service;
 import com.jobtracker.dto.gamification.AchievementResponse;
 import com.jobtracker.dto.gamification.GamificationEventRequest;
 import com.jobtracker.dto.gamification.GamificationEventResponse;
+import com.jobtracker.dto.gamification.GamificationEventSummary;
 import com.jobtracker.dto.gamification.GamificationProfileResponse;
+import com.jobtracker.gamification.GamificationProgressCallback;
 import com.jobtracker.entity.Achievement;
 import com.jobtracker.entity.JobApplication;
 import com.jobtracker.entity.User;
@@ -140,6 +142,56 @@ public class GamificationService {
                 : grantXp(user, request.eventType(), occurredAt);
 
         return toEventResponse(request.eventType(), result);
+    }
+
+    /**
+     * Progress-aware variant used by the MCP tool layer.
+     * Fires callback at four milestones so the MCP adapter can emit protocol progress notifications.
+     */
+    @Transactional
+    public GamificationEventSummary applyEventWithProgress(GamificationEventRequest request,
+                                                           GamificationProgressCallback callback) {
+        User user = securityUtils.getCurrentUser();
+        LocalDateTime occurredAt = request.occurredAt() != null ? request.occurredAt() : LocalDateTime.now();
+
+        callback.onStep(1, 4, "Validating event eligibility");
+
+        Set<String> beforeUnlocked = userAchievementRepository.findAllByUser_IdOrderByAchievedAtDesc(user.getId())
+                .stream()
+                .filter(ua -> ua.getAchievement() != null)
+                .map(ua -> ua.getAchievement().getCode())
+                .collect(Collectors.toSet());
+
+        callback.onStep(2, 4, "Awarding XP");
+
+        EventResult result = request.applicationId() != null
+                ? applyApplicationEvent(user, request.applicationId(), request.eventType(), occurredAt)
+                : grantXp(user, request.eventType(), occurredAt);
+
+        callback.onStep(3, 4, "Checking achievements");
+
+        Set<String> afterUnlocked = userAchievementRepository.findAllByUser_IdOrderByAchievedAtDesc(user.getId())
+                .stream()
+                .filter(ua -> ua.getAchievement() != null)
+                .map(ua -> ua.getAchievement().getCode())
+                .collect(Collectors.toSet());
+
+        List<String> newlyUnlocked = afterUnlocked.stream()
+                .filter(code -> !beforeUnlocked.contains(code))
+                .toList();
+
+        callback.onStep(4, 4, "Building summary");
+
+        return new GamificationEventSummary(
+                request.eventType(),
+                result.xpAwarded(),
+                result.leveledUp(),
+                result.profile().level(),
+                result.profile().streakDays(),
+                newlyUnlocked,
+                result.message(),
+                result.profile()
+        );
     }
 
     @Transactional
