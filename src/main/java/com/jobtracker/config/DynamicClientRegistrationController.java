@@ -1,0 +1,214 @@
+package com.jobtracker.config;
+
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
+import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * RFC 7591 Dynamic Client Registration endpoint.
+ *
+ * Spring Authorization Server 1.5.x does not natively implement DCR, so this is a
+ * manual implementation. ChatGPT requires DCR (and advertises its absence as a warning
+ * in the OIDC discovery doc) before it can complete the OAuth flow.
+ *
+ * Registered clients are public (no secret), PKCE-required, authorization_code only.
+ * Statically configured GPT/MCP clients cannot be overridden: their IDs are never
+ * generated here (we generate "dcr-<uuid>" IDs and reject any client_id from the request).
+ *
+ * Rate limit: MAX_REGISTRATIONS_PER_MINUTE_PER_IP per IP/minute to prevent DB flooding.
+ */
+@RestController
+@RequestMapping("/connect/register")
+public class DynamicClientRegistrationController {
+
+    public static final int MAX_REGISTRATIONS_PER_MINUTE_PER_IP = 5;
+    private static final List<String> DEFAULT_SCOPES =
+            List.of("openid", "read:profile", "read:applications", "write:applications",
+                    "read:resume", "read:google-drive", "read:metrics");
+
+    private final RegisteredClientRepository registeredClientRepository;
+    private final McpOAuthProperties mcpOAuthProperties;
+
+    // Simple per-IP sliding-window rate limiter: IP → [count, windowStartMillis]
+    private final ConcurrentHashMap<String, long[]> rateLimitMap = new ConcurrentHashMap<>();
+
+    public DynamicClientRegistrationController(
+            RegisteredClientRepository registeredClientRepository,
+            McpOAuthProperties mcpOAuthProperties) {
+        this.registeredClientRepository = registeredClientRepository;
+        this.mcpOAuthProperties = mcpOAuthProperties;
+    }
+
+    @PostMapping(
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> register(
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpRequest) {
+
+        String clientIp = resolveClientIp(httpRequest);
+        if (isRateLimited(clientIp)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(error("too_many_requests", "Rate limit exceeded. Try again later."));
+        }
+
+        // redirect_uris is required (RFC 7591 §2)
+        Object rawRedirectUris = request.get("redirect_uris");
+        if (!(rawRedirectUris instanceof List<?> rawList) || rawList.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(error("invalid_redirect_uri",
+                            "redirect_uris is required and must be a non-empty array"));
+        }
+
+        List<String> redirectUris = rawList.stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .filter(uri -> uri.length() <= 500)
+                .filter(uri -> uri.startsWith("https://") || uri.startsWith("http://localhost"))
+                .distinct()
+                .toList();
+
+        if (redirectUris.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(error("invalid_redirect_uri",
+                            "At least one redirect_uri must use HTTPS (or http://localhost for testing)"));
+        }
+
+        // Resolve allowed scopes (fall back to defaults when MCP is not configured)
+        List<String> allowedScopes = mcpOAuthProperties.getScopes();
+        if (allowedScopes.isEmpty()) {
+            allowedScopes = DEFAULT_SCOPES;
+        }
+        Set<String> grantedScopes = resolveScopes(request.get("scope"), allowedScopes);
+
+        String clientName = sanitizeClientName(request.get("client_name"));
+        String clientId = "dcr-" + UUID.randomUUID().toString().replace("-", "");
+        Instant issuedAt = Instant.now();
+
+        RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
+                .clientId(clientId)
+                .clientIdIssuedAt(issuedAt)
+                .clientName(clientName)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUris(uris -> uris.addAll(redirectUris))
+                .scopes(scopes -> scopes.addAll(grantedScopes))
+                .clientSettings(ClientSettings.builder()
+                        .requireAuthorizationConsent(false)
+                        .requireProofKey(true)
+                        .build())
+                .tokenSettings(TokenSettings.builder()
+                        .accessTokenTimeToLive(mcpOAuthProperties.getAccessTokenTimeToLive())
+                        .refreshTokenTimeToLive(mcpOAuthProperties.getRefreshTokenTimeToLive())
+                        .reuseRefreshTokens(false)
+                        .build())
+                .build();
+
+        registeredClientRepository.save(registeredClient);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("client_id", clientId);
+        response.put("client_id_issued_at", issuedAt.getEpochSecond());
+        response.put("redirect_uris", redirectUris);
+        response.put("grant_types", List.of("authorization_code"));
+        response.put("response_types", List.of("code"));
+        response.put("token_endpoint_auth_method", "none");
+        response.put("scope", String.join(" ", grantedScopes));
+        response.put("client_name", clientName);
+        response.put("code_challenge_methods_supported", List.of("S256"));
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    private Set<String> resolveScopes(Object scopeClaim, List<String> allowed) {
+        if (scopeClaim instanceof String scopeStr && !scopeStr.isBlank()) {
+            Set<String> requested = Set.of(scopeStr.split("\\s+"));
+            Set<String> granted = new LinkedHashSet<>();
+            for (String scope : allowed) {
+                if (requested.contains(scope)) {
+                    granted.add(scope);
+                }
+            }
+            if (!granted.isEmpty()) {
+                return granted;
+            }
+        }
+        return new LinkedHashSet<>(allowed);
+    }
+
+    // Returns true when the IP has exceeded the rate limit for the current window.
+    // ConcurrentHashMap.compute() is atomic per key, so this is thread-safe.
+    private boolean isRateLimited(String ip) {
+        long now = System.currentTimeMillis();
+        long windowMs = 60_000L;
+
+        long[] state = rateLimitMap.compute(ip, (key, value) -> {
+            if (value == null || now - value[1] > windowMs) {
+                return new long[]{1L, now};
+            }
+            value[0]++;
+            return value;
+        });
+
+        return state[0] > MAX_REGISTRATIONS_PER_MINUTE_PER_IP;
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private String sanitizeClientName(Object raw) {
+        if (raw instanceof String s && !s.isBlank()) {
+            String trimmed = s.trim();
+            return trimmed.length() > 100 ? trimmed.substring(0, 100) : trimmed;
+        }
+        return "DCR Client";
+    }
+
+    private Map<String, Object> error(String code, String description) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", code);
+        body.put("error_description", description);
+        return body;
+    }
+
+    public void resetRateLimitMap() {
+        rateLimitMap.clear();
+    }
+
+    public Map<String, long[]> getRateLimitSnapshot() {
+        return new LinkedHashMap<>(rateLimitMap);
+    }
+
+    // Returns a mutable list of all DCR-registered client IDs (scanned from allowed scopes list).
+    // Only used for testing convenience.
+    static List<String> getAllowedScopes(McpOAuthProperties props) {
+        List<String> allowed = props.getScopes();
+        return allowed.isEmpty() ? new ArrayList<>(DEFAULT_SCOPES) : new ArrayList<>(allowed);
+    }
+}
