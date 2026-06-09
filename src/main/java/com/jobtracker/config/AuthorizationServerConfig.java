@@ -114,7 +114,11 @@ public class AuthorizationServerConfig {
                                             metadata.tokenEndpointAuthenticationMethod("none");
                                         }))
                                 .userInfoEndpoint(userInfo -> userInfo
-                                        .userInfoMapper(userInfoMapper))))
+                                        .userInfoMapper(userInfoMapper)))
+                        .authorizationServerMetadataEndpoint(metadata ->
+                                metadata.authorizationServerMetadataCustomizer(builder ->
+                                        builder.tokenEndpointAuthenticationMethod(
+                                                ClientAuthenticationMethod.NONE.getValue()))))
                 .exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
                         new LoginUrlAuthenticationEntryPoint("/login"),
                         new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
