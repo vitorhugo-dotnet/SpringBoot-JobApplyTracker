@@ -100,6 +100,7 @@ public class AuthorizationServerConfig {
                 .securityMatcher(authServerMatcher)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/login", "/default-ui.css").permitAll()
+                        .requestMatchers("/connect/register").denyAll()
                         .anyRequest().authenticated())
                 .with(authorizationServerConfigurer, authorizationServer -> authorizationServer
                         .oidc(oidc -> oidc
@@ -114,7 +115,11 @@ public class AuthorizationServerConfig {
                                             metadata.tokenEndpointAuthenticationMethod("none");
                                         }))
                                 .userInfoEndpoint(userInfo -> userInfo
-                                        .userInfoMapper(userInfoMapper))))
+                                        .userInfoMapper(userInfoMapper)))
+                        .authorizationServerMetadataEndpoint(metadata ->
+                                metadata.authorizationServerMetadataCustomizer(builder ->
+                                        builder.tokenEndpointAuthenticationMethod(
+                                                ClientAuthenticationMethod.NONE.getValue()))))
                 .exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
                         new LoginUrlAuthenticationEntryPoint("/login"),
                         new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
