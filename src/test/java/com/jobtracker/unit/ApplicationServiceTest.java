@@ -3,11 +3,11 @@ package com.jobtracker.unit;
 import com.jobtracker.dto.application.*;
 import com.jobtracker.entity.JobApplication;
 import com.jobtracker.entity.User;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.exception.BadRequestException;
 import com.jobtracker.exception.ResourceNotFoundException;
 import com.jobtracker.mapper.ApplicationMapper;
 import com.jobtracker.repository.ApplicationRepository;
+import com.jobtracker.repository.ApplicationStatusRepository;
 import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.service.ApplicationService;
 import com.jobtracker.service.GamificationService;
@@ -46,6 +46,7 @@ class ApplicationServiceTest {
     private static final UUID OTHER_UUID = UUID.fromString("00000000-0000-0000-0000-000000000099");
 
     @Mock private ApplicationRepository applicationRepository;
+    @Mock private ApplicationStatusRepository applicationStatusRepository;
     @Mock private InterviewEventRepository interviewEventRepository;
     @Mock private ApplicationMapper applicationMapper;
     @Mock private GamificationService gamificationService;
@@ -71,13 +72,14 @@ class ApplicationServiceTest {
     void create_shouldSaveAndReturnResponse() {
         ApplicationRequest request = buildRequest();
         when(securityUtils.getCurrentUser()).thenReturn(user);
+        when(applicationStatusRepository.existsByName("RH")).thenReturn(true);
         when(applicationRepository.save(any(JobApplication.class))).thenReturn(app);
         when(applicationMapper.toResponse(app)).thenReturn(response);
 
         ApplicationResponse result = applicationService.create(request);
         assertThat(result.id()).isEqualTo(APP_UUID);
         verify(applicationRepository).save(any(JobApplication.class));
-        verify(interviewMetricsService).recordStatusTransition(app, null, ApplicationStatus.RH);
+        verify(interviewMetricsService).recordStatusTransition(app, null, "RH");
         verify(gamificationService).onApplicationCreated(app);
     }
 
@@ -104,13 +106,14 @@ class ApplicationServiceTest {
         ApplicationRequest request = buildRequest();
         when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
         when(applicationRepository.findByIdAndUserId(APP_UUID, USER_UUID)).thenReturn(Optional.of(app));
+        when(applicationStatusRepository.existsByName("RH")).thenReturn(true);
         when(applicationRepository.save(app)).thenReturn(app);
         when(applicationMapper.toResponse(app)).thenReturn(response);
 
         ApplicationResponse result = applicationService.update(APP_UUID, request);
         assertThat(result).isNotNull();
-        verify(gamificationService).onApplicationUpdated(eq(app), eq(ApplicationStatus.RH), eq(false), eq("Follow up this week"));
-        verify(interviewMetricsService).recordStatusTransition(app, ApplicationStatus.RH, ApplicationStatus.RH);
+        verify(gamificationService).onApplicationUpdated(eq(app), eq("RH"), eq(false), eq("Follow up this week"));
+        verify(interviewMetricsService).recordStatusTransition(app, "RH", "RH");
     }
 
     @Test
@@ -118,14 +121,15 @@ class ApplicationServiceTest {
         UpdateStatusRequest statusRequest = new UpdateStatusRequest("RH");
         when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
         when(applicationRepository.findByIdAndUserId(APP_UUID, USER_UUID)).thenReturn(Optional.of(app));
+        when(applicationStatusRepository.existsByName("RH")).thenReturn(true);
         when(applicationRepository.save(app)).thenReturn(app);
         when(applicationMapper.toResponse(app)).thenReturn(response);
 
         ApplicationResponse result = applicationService.updateStatus(APP_UUID, statusRequest);
         assertThat(result).isNotNull();
-        assertThat(app.getStatus()).isEqualTo(ApplicationStatus.RH);
-        verify(interviewMetricsService).recordStatusTransition(app, ApplicationStatus.RH, ApplicationStatus.RH);
-        verify(gamificationService).onApplicationStatusUpdated(app, ApplicationStatus.RH);
+        assertThat(app.getStatus()).isEqualTo("RH");
+        verify(interviewMetricsService).recordStatusTransition(app, "RH", "RH");
+        verify(gamificationService).onApplicationStatusUpdated(app, "RH");
     }
 
     @Test
@@ -147,6 +151,7 @@ class ApplicationServiceTest {
         UpdateStatusRequest statusRequest = new UpdateStatusRequest("INVALID_STATUS");
         when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
         when(applicationRepository.findByIdAndUserId(APP_UUID, USER_UUID)).thenReturn(Optional.of(app));
+        when(applicationStatusRepository.existsByName("INVALID_STATUS")).thenReturn(false);
 
         assertThatThrownBy(() -> applicationService.updateStatus(APP_UUID, statusRequest))
                 .isInstanceOf(BadRequestException.class)
@@ -341,7 +346,7 @@ class ApplicationServiceTest {
         a.setId(id);
         a.setVacancyName("Software Engineer");
         a.setOrganization("HR");
-        a.setStatus(ApplicationStatus.RH);
+        a.setStatus("RH");
         a.setApplicationDate(LocalDate.now());
         a.setNote("Follow up this week");
         a.setUser(user);
@@ -360,6 +365,6 @@ class ApplicationServiceTest {
         return new ApplicationResponse(id, "Software Engineer", "Recruiter", "HR",
                 "https://example.com/job", LocalDate.now(), false, false, null, "RH", null,
                 false, LocalDateTime.now(), "Follow up this week", null, false, null, null, null, null, null, null,
-                0, LocalDateTime.now(), LocalDateTime.now());
+                false, 0, LocalDateTime.now(), LocalDateTime.now());
     }
 }

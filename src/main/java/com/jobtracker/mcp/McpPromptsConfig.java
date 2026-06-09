@@ -16,6 +16,7 @@ import java.util.List;
  * Registers MCP prompt templates.
  */
 @Service
+@SuppressWarnings("unused")
 public class McpPromptsConfig {
 
     /**

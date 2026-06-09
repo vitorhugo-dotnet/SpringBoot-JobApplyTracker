@@ -47,7 +47,8 @@ class ApplicationE2ETest extends AbstractE2ETest {
                           "name": "App E2E User",
                           "email": "appe2e@example.com",
                           "password": "pass1234",
-                          "confirmPassword": "pass1234"
+                          "confirmPassword": "pass1234",
+                          "acceptedPrivacyPolicy": true
                         }
                         """)
                 .post("/api/v1/auth/register")
@@ -112,7 +113,7 @@ class ApplicationE2ETest extends AbstractE2ETest {
                           "applicationDate": "%s",
                           "rhAcceptedConnection": true,
                           "interviewScheduled": false,
-                          "status": "Fiz a RH - Aguardando Atualização",
+                          "status": "Pending HR Response",
                                                                                                         "recruiterDmReminderEnabled": false,
                                                                                                         "note": "Updated note"
                         }
@@ -121,7 +122,7 @@ class ApplicationE2ETest extends AbstractE2ETest {
                 .then()
                 .statusCode(200)
                 .body("vacancyName", equalTo("Senior Software Engineer"))
-                .body("status", equalTo("Fiz a RH - Aguardando Atualização"))
+                .body("status", equalTo("Pending HR Response"))
                 .body("rhAcceptedConnection", equalTo(true))
                 .body("note", equalTo("Updated note"));
 
@@ -218,7 +219,7 @@ class ApplicationE2ETest extends AbstractE2ETest {
                         {"vacancyName": "App Tecnico", "recruiterName": "Recruiter B", "organization": "Tech",
                          "vacancyLink": "https://example.com/b", "applicationDate": "%s",
                          "rhAcceptedConnection": false, "interviewScheduled": true,
-                         "status": "Teste Técnico", "recruiterDmReminderEnabled": false}
+                         "status": "Technical Test", "recruiterDmReminderEnabled": false}
                         """.formatted(applicationDate))
                 .post("/api/v1/applications").then().statusCode(201);
 
@@ -282,7 +283,8 @@ class ApplicationE2ETest extends AbstractE2ETest {
                 .contentType("application/json")
                 .body("""
                         {"name": "Other User", "email": "other@example.com",
-                         "password": "pass1234", "confirmPassword": "pass1234"}
+                         "password": "pass1234", "confirmPassword": "pass1234",
+                         "acceptedPrivacyPolicy": true}
                         """)
                 .post("/api/v1/auth/register");
 

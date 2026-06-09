@@ -1,7 +1,6 @@
 package com.jobtracker.service;
 
 import com.jobtracker.dto.dashboard.DashboardSummaryResponse;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.util.SecurityUtils;
 import org.springframework.stereotype.Service;
@@ -33,10 +32,14 @@ public class DashboardService {
 
         long totalApplications = applicationRepository.countByUserIdAndArchivedFalse(userId);
 
-        List<ApplicationStatus> waitingStatuses = List.of(
-                ApplicationStatus.FIZ_A_RH_AGUARDANDO_ATUALIZACAO,
-                ApplicationStatus.FIZ_A_HIRING_MANAGER_AGUARDANDO_ATUALIZACAO,
-                ApplicationStatus.FIZ_TESTE_TECNICO_AGUARDANDO_ATUALIZACAO
+        // Include both legacy enum constant names (old records) and new English values (new records).
+        List<String> waitingStatuses = List.of(
+                "FIZ_A_RH_AGUARDANDO_ATUALIZACAO",
+                "FIZ_A_HIRING_MANAGER_AGUARDANDO_ATUALIZACAO",
+                "FIZ_TESTE_TECNICO_AGUARDANDO_ATUALIZACAO",
+                "Pending HR Response",
+                "Pending Hiring Manager Response",
+                "Pending Technical Test Response"
         );
         long waitingResponses = applicationRepository.countByUserIdAndStatusInAndArchivedFalse(userId, waitingStatuses);
 
@@ -49,9 +52,12 @@ public class DashboardService {
 
         long toSendLater = applicationRepository.countByUserIdAndStatusIsNullAndArchivedFalse(userId);
 
-        long rejectedCount = applicationRepository.countByUserIdAndStatusAndArchivedFalse(userId, ApplicationStatus.REJEITADO);
+        // countByUserIdAndStatusInAndArchivedFalse handles both old and new value names.
+        long rejectedCount = applicationRepository.countByUserIdAndStatusInAndArchivedFalse(
+                userId, List.of("REJEITADO", "Rejected"));
 
-        long ghostingCount = applicationRepository.countByUserIdAndStatusAndArchivedFalse(userId, ApplicationStatus.GHOSTING);
+        long ghostingCount = applicationRepository.countByUserIdAndStatusInAndArchivedFalse(
+                userId, List.of("GHOSTING", "Ghosting"));
 
         double averageDailyApplications = roundToTwoDecimals(
             applicationRepository.countByUserIdAndApplicationDateSince(userId, LocalDate.now().minusDays(29)) / 30.0

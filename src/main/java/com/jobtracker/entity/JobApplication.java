@@ -1,6 +1,5 @@
 package com.jobtracker.entity;
 
-import com.jobtracker.entity.enums.ApplicationStatus;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -49,13 +48,14 @@ public class JobApplication {
     @Column(name = "next_step_date_time")
     private LocalDateTime nextStepDateTime;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = true, length = 100, columnDefinition = "varchar(100)")
-    private ApplicationStatus status;
+    private String status;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "previous_status", nullable = true, length = 100, columnDefinition = "varchar(100)")
-    private ApplicationStatus previousStatus;
+    private String previousStatus;
+
+    @Column(name = "to_send_later", nullable = false)
+    private boolean toSendLater;
 
     @Column(name = "recruiter_dm_reminder_enabled", nullable = false)
     private boolean recruiterDmReminderEnabled;
@@ -156,11 +156,14 @@ public class JobApplication {
     public LocalDateTime getNextStepDateTime() { return nextStepDateTime; }
     public void setNextStepDateTime(LocalDateTime nextStepDateTime) { this.nextStepDateTime = nextStepDateTime; }
 
-    public ApplicationStatus getStatus() { return status; }
-    public void setStatus(ApplicationStatus status) { this.status = status; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public ApplicationStatus getPreviousStatus() { return previousStatus; }
-    public void setPreviousStatus(ApplicationStatus previousStatus) { this.previousStatus = previousStatus; }
+    public String getPreviousStatus() { return previousStatus; }
+    public void setPreviousStatus(String previousStatus) { this.previousStatus = previousStatus; }
+
+    public boolean isToSendLater() { return toSendLater; }
+    public void setToSendLater(boolean toSendLater) { this.toSendLater = toSendLater; }
 
     public boolean isRecruiterDmReminderEnabled() { return recruiterDmReminderEnabled; }
     public void setRecruiterDmReminderEnabled(boolean recruiterDmReminderEnabled) { this.recruiterDmReminderEnabled = recruiterDmReminderEnabled; }

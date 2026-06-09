@@ -1,7 +1,6 @@
 package com.jobtracker.tasks;
 
 import com.jobtracker.entity.JobApplication;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.repository.ApplicationRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -29,19 +28,20 @@ public class StaleApplicationsScheduler {
         List<JobApplication> toSendLaterExpired = applicationRepository.findByStatusIsNullAndUpdatedAtBefore(oneWeekAgo);
         for (JobApplication application : toSendLaterExpired) {
             application.setPreviousStatus(null);
-            application.setStatus(ApplicationStatus.TARDE_DEMAIS);
+            application.setStatus("Rejected");
+            application.setToSendLater(false);
         }
         if (!toSendLaterExpired.isEmpty()) {
             applicationRepository.saveAll(toSendLaterExpired);
         }
 
         List<JobApplication> staleApplications = applicationRepository
-                .findByStatusIsNotNullAndStatusNotAndUpdatedAtBefore(ApplicationStatus.GHOSTING, oneMonthAgo);
+                .findByStatusIsNotNullAndStatusNotAndUpdatedAtBefore("Ghosting", oneMonthAgo);
         for (JobApplication application : staleApplications) {
-            ApplicationStatus currentStatus = application.getStatus();
-            if (currentStatus != ApplicationStatus.GHOSTING) {
+            String currentStatus = application.getStatus();
+            if (!"Ghosting".equals(currentStatus)) {
                 application.setPreviousStatus(currentStatus);
-                application.setStatus(ApplicationStatus.GHOSTING);
+                application.setStatus("Ghosting");
             }
         }
         if (!staleApplications.isEmpty()) {

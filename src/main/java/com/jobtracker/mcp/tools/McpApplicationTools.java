@@ -8,6 +8,7 @@ import com.jobtracker.dto.application.UpdateReminderRequest;
 import com.jobtracker.dto.application.UpdateStatusRequest;
 import com.jobtracker.service.ApplicationService;
 import com.jobtracker.service.ToolMetricsCollector;
+import java.util.List;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpTool.McpAnnotations;
 import org.springaicommunity.mcp.annotation.McpToolParam;
@@ -16,7 +17,6 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -30,6 +30,22 @@ public class McpApplicationTools {
                                ToolMetricsCollector metricsCollector) {
         this.applicationService = applicationService;
         this.metricsCollector = metricsCollector;
+    }
+
+    // --- Status tools ---
+
+    @McpTool(
+            name = "List-Statuses",
+            title = "List Statuses",
+            description = "Returns all valid application status values. ALWAYS call this before setting any status. Never hardcode or assume status values.",
+            annotations = @McpAnnotations(
+                    title = "List Statuses",
+                    readOnlyHint = true,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = false))
+    public List<String> listStatuses() {
+        return metricsCollector.measure("List-Statuses", null, applicationService::listStatuses);
     }
 
     // --- Read tools ---
@@ -125,7 +141,7 @@ public class McpApplicationTools {
     @McpTool(
             name = "Create-Application",
             title = "Create Application",
-            description = "Create a new job application record.",
+            description = "Create a new job application record. IMPORTANT: Call List-Statuses first to get valid status values. Never use a status value from memory.",
             annotations = @McpAnnotations(
                     title = "Create Application",
                     readOnlyHint = false,
@@ -199,7 +215,7 @@ public class McpApplicationTools {
     @McpTool(
             name = "Update-Application-Status",
             title = "Update Application Status",
-            description = "Update only the status of an existing job application.",
+            description = "Update only the status of an existing job application. IMPORTANT: Call List-Statuses first to get valid status values. Never use a status value from memory.",
             annotations = @McpAnnotations(
                     title = "Update Application Status",
                     readOnlyHint = false,

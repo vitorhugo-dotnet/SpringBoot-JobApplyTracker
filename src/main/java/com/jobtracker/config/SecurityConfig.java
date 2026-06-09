@@ -81,7 +81,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(
                                 "/.well-known/oauth-protected-resource",
-                                "/.well-known/oauth-protected-resource/**").permitAll()
+                                "/.well-known/oauth-protected-resource/**",
+                                "/.well-known/oauth-authorization-server/**").permitAll()
+                        .requestMatchers("/connect/register").permitAll()
                         .requestMatchers("/mcp", "/mcp/**").authenticated()
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().authenticated())

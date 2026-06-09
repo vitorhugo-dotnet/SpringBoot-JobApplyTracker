@@ -5,7 +5,6 @@ import com.jobtracker.dto.analytics.OrganizationSummary;
 import com.jobtracker.dto.analytics.WeeklySummaryResponse;
 import com.jobtracker.dto.application.ApplicationResponse;
 import com.jobtracker.entity.JobApplication;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.mapper.ApplicationMapper;
 import com.jobtracker.mcp.tools.McpAnalyticsTools;
 import com.jobtracker.repository.ApplicationRepository;
@@ -68,10 +67,10 @@ class McpAnalyticsToolsTest {
 
     @Test
     void getAnalytics_countsCorrectly() {
-        JobApplication rh = app(ApplicationStatus.RH, false, LocalDate.now().minusDays(5), null);
-        JobApplication interview = app(ApplicationStatus.ENTREVISTA_MARCADA, true, LocalDate.now().minusDays(3), "LinkedIn");
-        JobApplication rejected = app(ApplicationStatus.REJEITADO, false, LocalDate.now().minusDays(10), "Gupy");
-        JobApplication ghost = app(ApplicationStatus.GHOSTING, false, LocalDate.now().minusDays(20), null);
+        JobApplication rh = app("RH", false, LocalDate.now().minusDays(5), null);
+        JobApplication interview = app("Pending HR Response", true, LocalDate.now().minusDays(3), "LinkedIn");
+        JobApplication rejected = app("Rejected", false, LocalDate.now().minusDays(10), "Gupy");
+        JobApplication ghost = app("Ghosting", false, LocalDate.now().minusDays(20), null);
         JobApplication noStatus = app(null, false, null, null);
 
         when(securityUtils.getCurrentUserId()).thenReturn(USER_ID);
@@ -95,8 +94,8 @@ class McpAnalyticsToolsTest {
     @Test
     void getAnalytics_filtersDateRange() {
         LocalDate today = LocalDate.now();
-        JobApplication inRange = app(ApplicationStatus.RH, false, today.minusDays(3), null);
-        JobApplication outOfRange = app(ApplicationStatus.RH, false, today.minusDays(30), null);
+        JobApplication inRange = app("RH", false, today.minusDays(3), null);
+        JobApplication outOfRange = app("RH", false, today.minusDays(30), null);
 
         when(securityUtils.getCurrentUserId()).thenReturn(USER_ID);
         when(applicationRepository.findAllByUser_IdAndArchivedFalse(USER_ID))
@@ -112,7 +111,7 @@ class McpAnalyticsToolsTest {
     @Test
     void getAnalytics_averageDaysToResponse_onlyStatusNotNull() {
         LocalDate appDate = LocalDate.now().minusDays(10);
-        JobApplication withStatus = app(ApplicationStatus.RH, false, appDate, null);
+        JobApplication withStatus = app("RH", false, appDate, null);
         withStatus.setUpdatedAt(appDate.plusDays(5).atStartOfDay());
 
         JobApplication nullStatus = app(null, false, appDate, null);
@@ -129,11 +128,11 @@ class McpAnalyticsToolsTest {
 
     @Test
     void getApplicationsByOrganization_groupsAndSorts() {
-        JobApplication a1 = app(ApplicationStatus.RH, false, LocalDate.now(), null);
+        JobApplication a1 = app("RH", false, LocalDate.now(), null);
         a1.setOrganization("Acme");
-        JobApplication a2 = app(ApplicationStatus.ENTREVISTA_MARCADA, true, LocalDate.now(), null);
+        JobApplication a2 = app("Pending HR Response", true, LocalDate.now(), null);
         a2.setOrganization("Acme");
-        JobApplication a3 = app(ApplicationStatus.RH, false, LocalDate.now(), null);
+        JobApplication a3 = app("RH", false, LocalDate.now(), null);
         a3.setOrganization("Beta");
 
         when(securityUtils.getCurrentUserId()).thenReturn(USER_ID);
@@ -152,7 +151,7 @@ class McpAnalyticsToolsTest {
 
     @Test
     void getApplicationsByOrganization_ignoresNullOrganization() {
-        JobApplication noOrg = app(ApplicationStatus.RH, false, LocalDate.now(), null);
+        JobApplication noOrg = app("RH", false, LocalDate.now(), null);
 
         when(securityUtils.getCurrentUserId()).thenReturn(USER_ID);
         when(applicationRepository.findAllByUser_IdAndArchivedFalse(USER_ID))
@@ -166,7 +165,7 @@ class McpAnalyticsToolsTest {
     @Test
     void searchApplications_delegatesToRepositoryAndMaps() {
         UUID userId = USER_ID;
-        JobApplication entity = app(ApplicationStatus.RH, false, LocalDate.now(), null);
+        JobApplication entity = app("RH", false, LocalDate.now(), null);
         ApplicationResponse response = applicationResponseWithId(UUID.randomUUID());
 
         when(securityUtils.getCurrentUserId()).thenReturn(userId);
@@ -183,11 +182,11 @@ class McpAnalyticsToolsTest {
     @Test
     void getWeeklySummary_countsThisWeekAndLastWeek() {
         LocalDate today = LocalDate.now();
-        JobApplication thisWeek1 = app(ApplicationStatus.RH, false, today.minusDays(2), null);
-        JobApplication thisWeek2 = app(ApplicationStatus.RH, true, today.minusDays(1), null);
+        JobApplication thisWeek1 = app("RH", false, today.minusDays(2), null);
+        JobApplication thisWeek2 = app("RH", true, today.minusDays(1), null);
         thisWeek1.setOrganization("Acme");
         thisWeek2.setOrganization("Acme");
-        JobApplication lastWeekApp = app(ApplicationStatus.RH, false, today.minusDays(10), null);
+        JobApplication lastWeekApp = app("RH", false, today.minusDays(10), null);
 
         when(securityUtils.getCurrentUserId()).thenReturn(USER_ID);
         when(applicationRepository.findAllByUser_IdAndArchivedFalse(USER_ID))
@@ -217,7 +216,7 @@ class McpAnalyticsToolsTest {
         assertThat(result.overdueCount()).isEqualTo(2);
     }
 
-    private static JobApplication app(ApplicationStatus status, boolean interviewScheduled,
+    private static JobApplication app(String status, boolean interviewScheduled,
                                        LocalDate applicationDate, String platform) {
         JobApplication a = new JobApplication();
         a.setStatus(status);
@@ -238,6 +237,6 @@ class McpAnalyticsToolsTest {
                 null,
                 false, null,
                 null, null, null, null, null,
-                0, null, null);
+                false, 0, null, null);
     }
 }

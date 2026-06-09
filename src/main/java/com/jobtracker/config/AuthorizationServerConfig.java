@@ -6,21 +6,26 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.web.client.RestClient;
 
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
@@ -32,6 +37,7 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
+import org.springframework.security.oauth2.server.authorization.oidc.authentication.OidcUserInfoAuthenticationContext;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
@@ -44,6 +50,8 @@ import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
+import java.util.function.Function;
+
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -52,6 +60,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.UUID;
@@ -62,7 +71,10 @@ public class AuthorizationServerConfig {
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain authorizationServerSecurityFilterChain(
+            HttpSecurity http,
+            AuthorizationServerSettings authorizationServerSettings,
+            UserRepository userRepository) throws Exception {
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = OAuth2AuthorizationServerConfigurer.authorizationServer();
         RequestMatcher endpointsMatcher = authorizationServerConfigurer.getEndpointsMatcher();
         RequestMatcher authServerMatcher = new OrRequestMatcher(
@@ -72,12 +84,41 @@ public class AuthorizationServerConfig {
                 // within this chain); otherwise they fall through to the main chain and 403.
                 request -> "/default-ui.css".equals(request.getServletPath()));
 
+        String issuer = authorizationServerSettings.getIssuer();
+
+        // Userinfo mapper: loads email and name from the user repository so that
+        // /userinfo returns sub, email, and name for openid/profile/email scopes.
+        Function<OidcUserInfoAuthenticationContext, OidcUserInfo> userInfoMapper = context -> {
+            String principalName = context.getAuthorization().getPrincipalName();
+            OidcUserInfo.Builder builder = OidcUserInfo.builder().subject(principalName);
+            userRepository.findByEmail(principalName).ifPresent(user ->
+                    builder.email(user.getEmail()).name(user.getName()));
+            return builder.build();
+        };
+
         http
                 .securityMatcher(authServerMatcher)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/login", "/default-ui.css").permitAll()
                         .anyRequest().authenticated())
-                .with(authorizationServerConfigurer, authorizationServer -> authorizationServer.oidc(Customizer.withDefaults()))
+                .with(authorizationServerConfigurer, authorizationServer -> authorizationServer
+                        .oidc(oidc -> oidc
+                                // Advertise DCR endpoint so ChatGPT (and other clients) can
+                                // discover it from /.well-known/openid-configuration.
+                                // Also ensure "none" appears in token_endpoint_auth_methods_supported
+                                // so public-client flows are not rejected before they start.
+                                .providerConfigurationEndpoint(endpoint -> endpoint
+                                        .providerConfigurationCustomizer(metadata -> {
+                                            metadata.claim("registration_endpoint",
+                                                    issuer + "/connect/register");
+                                            metadata.tokenEndpointAuthenticationMethod("none");
+                                        }))
+                                .userInfoEndpoint(userInfo -> userInfo
+                                        .userInfoMapper(userInfoMapper)))
+                        .authorizationServerMetadataEndpoint(metadata ->
+                                metadata.authorizationServerMetadataCustomizer(builder ->
+                                        builder.tokenEndpointAuthenticationMethod(
+                                                ClientAuthenticationMethod.NONE.getValue()))))
                 .exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
                         new LoginUrlAuthenticationEntryPoint("/login"),
                         new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
@@ -90,9 +131,35 @@ public class AuthorizationServerConfig {
         return http.build();
     }
 
-    @Bean
-    public RegisteredClientRepository registeredClientRepository(JdbcOperations jdbcOperations) {
+    @Bean(name = "jdbcRegisteredClientRepository")
+    public RegisteredClientRepository jdbcRegisteredClientRepository(JdbcOperations jdbcOperations) {
         return new JdbcRegisteredClientRepository(jdbcOperations);
+    }
+
+    /**
+     * Primary {@link RegisteredClientRepository}: adds CIMD (Client ID Metadata Document) support
+     * on top of the persistent JDBC repository. URL client IDs are resolved as ephemeral CIMD
+     * clients; all other lookups (bootstrap clients, DCR-registered clients) delegate to JDBC.
+     */
+    @Bean
+    @Primary
+    public RegisteredClientRepository registeredClientRepository(
+            @Qualifier("jdbcRegisteredClientRepository") RegisteredClientRepository jdbcRegisteredClientRepository,
+            McpOAuthProperties mcpOAuthProperties,
+            @Qualifier("cimdRestClient") RestClient cimdRestClient) {
+        return new CimdRegisteredClientRepository(jdbcRegisteredClientRepository, mcpOAuthProperties, cimdRestClient);
+    }
+
+    /**
+     * Dedicated {@link RestClient} for fetching CIMD documents, with tight timeouts
+     * (3s connect, 5s read) so a slow or hostile client_id URL cannot stall the authorization flow.
+     */
+    @Bean(name = "cimdRestClient")
+    public RestClient cimdRestClient() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout((int) Duration.ofSeconds(3).toMillis());
+        requestFactory.setReadTimeout((int) Duration.ofSeconds(5).toMillis());
+        return RestClient.builder().requestFactory(requestFactory).build();
     }
 
     @Bean

@@ -2,7 +2,6 @@ package com.jobtracker.integration;
 
 import com.jobtracker.entity.JobApplication;
 import com.jobtracker.entity.User;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -122,7 +121,7 @@ class ApplicationRepositoryIT extends AbstractIntegrationTest {
         JobApplication app = new JobApplication();
         app.setVacancyName(vacancyName);
         app.setOrganization("HR");
-        app.setStatus(ApplicationStatus.RH);
+        app.setStatus("RH");
         app.setApplicationDate(LocalDate.now().minusDays(1));
         app.setUser(user);
         return app;

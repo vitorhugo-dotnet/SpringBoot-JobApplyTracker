@@ -1,7 +1,6 @@
 package com.jobtracker.repository;
 
 import com.jobtracker.entity.JobApplication;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -29,7 +28,7 @@ public interface ApplicationRepository extends JpaRepository<JobApplication, UUI
     long countByUserIdAndInterviewScheduledTrueAndArchivedFalse(UUID userId);
 
     @Query("SELECT COUNT(a) FROM JobApplication a WHERE a.user.id = :userId AND a.status = :status AND a.archived = false")
-    long countByUserIdAndStatusAndArchivedFalse(@Param("userId") UUID userId, @Param("status") ApplicationStatus status);
+    long countByUserIdAndStatusAndArchivedFalse(@Param("userId") UUID userId, @Param("status") String status);
 
     @Query("SELECT COUNT(a) FROM JobApplication a WHERE a.user.id = :userId AND a.status IS NOT NULL AND a.recruiterDmReminderEnabled = true AND a.recruiterDmSentAt IS NULL AND a.archived = false")
     long countPendingDmRemindersByUserId(@Param("userId") UUID userId);
@@ -43,7 +42,7 @@ public interface ApplicationRepository extends JpaRepository<JobApplication, UUI
     long countByUserIdAndApplicationDateAndArchivedFalse(@Param("userId") UUID userId, @Param("date") java.time.LocalDate date);
 
     @Query("SELECT COUNT(a) FROM JobApplication a WHERE a.user.id = :userId AND a.status IN :statuses AND a.archived = false")
-    long countByUserIdAndStatusInAndArchivedFalse(@Param("userId") UUID userId, @Param("statuses") List<ApplicationStatus> statuses);
+    long countByUserIdAndStatusInAndArchivedFalse(@Param("userId") UUID userId, @Param("statuses") List<String> statuses);
 
     List<JobApplication> findAllByUser_IdAndArchivedFalse(UUID userId);
 
@@ -55,7 +54,7 @@ public interface ApplicationRepository extends JpaRepository<JobApplication, UUI
 
     List<JobApplication> findByStatusIsNullAndUpdatedAtBefore(LocalDateTime updatedAt);
 
-    List<JobApplication> findByStatusIsNotNullAndStatusNotAndUpdatedAtBefore(ApplicationStatus status, LocalDateTime updatedAt);
+    List<JobApplication> findByStatusIsNotNullAndStatusNotAndUpdatedAtBefore(String status, LocalDateTime updatedAt);
 
     /**
      * Atomically sets {@code driveVacancyFolderId} on an application only when the column is
