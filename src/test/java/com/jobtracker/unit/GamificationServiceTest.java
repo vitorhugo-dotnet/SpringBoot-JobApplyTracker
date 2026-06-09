@@ -8,7 +8,6 @@ import com.jobtracker.entity.JobApplication;
 import com.jobtracker.entity.User;
 import com.jobtracker.entity.UserAchievement;
 import com.jobtracker.entity.UserGamification;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.entity.enums.GamificationEventType;
 import com.jobtracker.repository.AchievementRepository;
 import com.jobtracker.repository.ApplicationRepository;
@@ -116,11 +115,11 @@ class GamificationServiceTest {
 
     @Test
     void onApplicationUpdated_shouldAwardInterviewOnlyOnce() {
-        JobApplication application = application(ApplicationStatus.TESTE_TECNICO, null);
+        JobApplication application = application("Technical Test", null);
         when(applicationRepository.save(any(JobApplication.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        gamificationService.onApplicationStatusUpdated(application, ApplicationStatus.RH);
-        gamificationService.onApplicationStatusUpdated(application, ApplicationStatus.TESTE_TECNICO);
+        gamificationService.onApplicationStatusUpdated(application, "RH");
+        gamificationService.onApplicationStatusUpdated(application, "Technical Test");
 
         assertThat(state.getCurrentXp()).isEqualTo(140);
         assertThat(application.isInterviewProgressXpAwarded()).isTrue();
@@ -129,11 +128,11 @@ class GamificationServiceTest {
 
     @Test
     void onApplicationUpdated_shouldAwardNoteOnlyWhenTransitioningFromBlank() {
-        JobApplication application = application(ApplicationStatus.RH, "Fresh note");
+        JobApplication application = application("RH", "Fresh note");
         when(applicationRepository.save(any(JobApplication.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        gamificationService.onApplicationUpdated(application, ApplicationStatus.RH, false, null);
-        gamificationService.onApplicationUpdated(application, ApplicationStatus.RH, false, "Fresh note");
+        gamificationService.onApplicationUpdated(application, "RH", false, null);
+        gamificationService.onApplicationUpdated(application, "RH", false, "Fresh note");
 
         assertThat(state.getCurrentXp()).isEqualTo(95);
         assertThat(application.isNoteAddedXpAwarded()).isTrue();
@@ -144,21 +143,21 @@ class GamificationServiceTest {
         List<UserAchievement> unlocked = new ArrayList<>();
         when(securityUtils.getCurrentUser()).thenReturn(user);
         when(applicationRepository.findAllByUser_IdAndArchivedFalse(user.getId())).thenReturn(List.of(
-                applicationAt(1, LocalDate.now().minusDays(4), LocalDateTime.now().withHour(8), ApplicationStatus.RH, null),
-                applicationAt(2, LocalDate.now().minusDays(3), LocalDateTime.now().withHour(8), ApplicationStatus.RH, null),
-                applicationAt(3, LocalDate.now().minusDays(2), LocalDateTime.now().withHour(8), ApplicationStatus.RH, null),
-                applicationAt(4, LocalDate.now().minusDays(1), LocalDateTime.now().withHour(8), ApplicationStatus.RH, null),
-                applicationAt(5, LocalDate.now(), LocalDateTime.now().withHour(8), ApplicationStatus.GHOSTING, LocalDateTime.now().minusDays(1)),
-                applicationAt(6, LocalDate.now(), LocalDateTime.now().withHour(10), ApplicationStatus.RH, LocalDateTime.now().minusDays(6)),
-                applicationAt(7, LocalDate.now(), LocalDateTime.now().withHour(10), ApplicationStatus.RH, LocalDateTime.now().minusDays(6).plusHours(1)),
-                applicationAt(8, LocalDate.now(), LocalDateTime.now().withHour(10), ApplicationStatus.RH, LocalDateTime.now().minusDays(5)),
-                applicationAt(9, LocalDate.now(), LocalDateTime.now().withHour(10), ApplicationStatus.RH, LocalDateTime.now().minusDays(5).plusHours(1)),
-                applicationAt(10, LocalDate.now(), LocalDateTime.now().withHour(10), ApplicationStatus.RH, LocalDateTime.now().minusDays(4)),
-                applicationAt(11, LocalDate.now(), LocalDateTime.now().withHour(10), ApplicationStatus.RH, LocalDateTime.now().minusDays(4).plusHours(1)),
-                applicationAt(12, LocalDate.now(), LocalDateTime.now().withHour(10), ApplicationStatus.RH, LocalDateTime.now().minusDays(3)),
-                applicationAt(13, LocalDate.now(), LocalDateTime.now().withHour(10), ApplicationStatus.RH, LocalDateTime.now().minusDays(3).plusHours(1)),
-                applicationAt(14, LocalDate.now(), LocalDateTime.now().withHour(10), ApplicationStatus.RH, LocalDateTime.now().minusDays(2)),
-                applicationAt(15, LocalDate.now(), LocalDateTime.now().withHour(10), ApplicationStatus.RH, LocalDateTime.now().minusDays(2).plusHours(1))
+                applicationAt(1, LocalDate.now().minusDays(4), LocalDateTime.now().withHour(8), "RH", null),
+                applicationAt(2, LocalDate.now().minusDays(3), LocalDateTime.now().withHour(8), "RH", null),
+                applicationAt(3, LocalDate.now().minusDays(2), LocalDateTime.now().withHour(8), "RH", null),
+                applicationAt(4, LocalDate.now().minusDays(1), LocalDateTime.now().withHour(8), "RH", null),
+                applicationAt(5, LocalDate.now(), LocalDateTime.now().withHour(8), "Ghosting", LocalDateTime.now().minusDays(1)),
+                applicationAt(6, LocalDate.now(), LocalDateTime.now().withHour(10), "RH", LocalDateTime.now().minusDays(6)),
+                applicationAt(7, LocalDate.now(), LocalDateTime.now().withHour(10), "RH", LocalDateTime.now().minusDays(6).plusHours(1)),
+                applicationAt(8, LocalDate.now(), LocalDateTime.now().withHour(10), "RH", LocalDateTime.now().minusDays(5)),
+                applicationAt(9, LocalDate.now(), LocalDateTime.now().withHour(10), "RH", LocalDateTime.now().minusDays(5).plusHours(1)),
+                applicationAt(10, LocalDate.now(), LocalDateTime.now().withHour(10), "RH", LocalDateTime.now().minusDays(4)),
+                applicationAt(11, LocalDate.now(), LocalDateTime.now().withHour(10), "RH", LocalDateTime.now().minusDays(4).plusHours(1)),
+                applicationAt(12, LocalDate.now(), LocalDateTime.now().withHour(10), "RH", LocalDateTime.now().minusDays(3)),
+                applicationAt(13, LocalDate.now(), LocalDateTime.now().withHour(10), "RH", LocalDateTime.now().minusDays(3).plusHours(1)),
+                applicationAt(14, LocalDate.now(), LocalDateTime.now().withHour(10), "RH", LocalDateTime.now().minusDays(2)),
+                applicationAt(15, LocalDate.now(), LocalDateTime.now().withHour(10), "RH", LocalDateTime.now().minusDays(2).plusHours(1))
         ));
         when(userAchievementRepository.findAllByUser_IdOrderByAchievedAtDesc(user.getId())).thenAnswer(invocation -> unlocked);
         when(userAchievementRepository.save(any(UserAchievement.class))).thenAnswer(invocation -> {
@@ -172,7 +171,7 @@ class GamificationServiceTest {
                 .allMatch(achievement -> achievement.unlocked());
     }
 
-    private JobApplication application(ApplicationStatus status, String note) {
+    private JobApplication application(String status, String note) {
         JobApplication application = new JobApplication();
         application.setId(UUID.randomUUID());
         application.setUser(user);
@@ -185,7 +184,7 @@ class GamificationServiceTest {
     private JobApplication applicationAt(int suffix,
                                          LocalDate applicationDate,
                                          LocalDateTime createdAt,
-                                         ApplicationStatus status,
+                                         String status,
                                          LocalDateTime dmSentAt) {
         JobApplication application = new JobApplication();
         application.setId(UUID.fromString("00000000-0000-0000-0000-0000000000" + String.format("%02d", suffix)));

@@ -1,10 +1,7 @@
 package com.jobtracker.entity;
 
-import com.jobtracker.entity.enums.ApplicationStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
@@ -37,13 +34,11 @@ public class InterviewEvent {
     @JoinColumn(name = "application_id", nullable = false)
     private JobApplication application;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "old_status", length = 100, columnDefinition = "varchar(100)")
-    private ApplicationStatus oldStatus;
+    private String oldStatus;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "new_status", nullable = false, length = 100, columnDefinition = "varchar(100)")
-    private ApplicationStatus newStatus;
+    private String newStatus;
 
     @Column(name = "occurred_at", nullable = false)
     private LocalDateTime occurredAt;
@@ -79,19 +74,19 @@ public class InterviewEvent {
         this.application = application;
     }
 
-    public ApplicationStatus getOldStatus() {
+    public String getOldStatus() {
         return oldStatus;
     }
 
-    public void setOldStatus(ApplicationStatus oldStatus) {
+    public void setOldStatus(String oldStatus) {
         this.oldStatus = oldStatus;
     }
 
-    public ApplicationStatus getNewStatus() {
+    public String getNewStatus() {
         return newStatus;
     }
 
-    public void setNewStatus(ApplicationStatus newStatus) {
+    public void setNewStatus(String newStatus) {
         this.newStatus = newStatus;
     }
 

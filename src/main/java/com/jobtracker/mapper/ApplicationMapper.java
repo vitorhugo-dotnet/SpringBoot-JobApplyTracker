@@ -18,8 +18,8 @@ public class ApplicationMapper {
             app.isRhAcceptedConnection(),
             app.isInterviewScheduled(),
             app.getNextStepDateTime(),
-            app.getStatus() != null ? app.getStatus().getDisplayName() : null,
-            app.getPreviousStatus() != null ? app.getPreviousStatus().getDisplayName() : null,
+            app.getStatus(),
+            app.getPreviousStatus(),
             app.isRecruiterDmReminderEnabled(),
             app.getRecruiterDmSentAt(),
             app.getNote(),
@@ -31,6 +31,7 @@ public class ApplicationMapper {
             app.getDriveResumeFileName(),
             app.getDriveResumeDocumentUrl(),
             app.getDriveResumeGeneratedAt(),
+            app.isToSendLater(),
             app.getInterviewCount(),
             app.getCreatedAt(),
             app.getUpdatedAt()

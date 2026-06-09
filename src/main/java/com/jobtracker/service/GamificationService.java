@@ -11,7 +11,6 @@ import com.jobtracker.entity.JobApplication;
 import com.jobtracker.entity.User;
 import com.jobtracker.entity.UserAchievement;
 import com.jobtracker.entity.UserGamification;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.entity.enums.GamificationEventType;
 import com.jobtracker.exception.ResourceNotFoundException;
 import com.jobtracker.repository.AchievementRepository;
@@ -28,7 +27,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,13 +50,19 @@ public class GamificationService {
      * - OFFER_WON maps to RH_NEGOCIACAO, which is the closest current backend status
      *   to an offer/closing stage until dedicated OFFER/HIRED statuses exist.
      */
-    private static final Set<ApplicationStatus> INTERVIEW_PROGRESS_STATUSES = EnumSet.of(
-            ApplicationStatus.ENTREVISTA_MARCADA,
-            ApplicationStatus.FIZ_A_RH_AGUARDANDO_ATUALIZACAO,
-            ApplicationStatus.FIZ_A_HIRING_MANAGER_AGUARDANDO_ATUALIZACAO,
-            ApplicationStatus.TESTE_TECNICO,
-            ApplicationStatus.FIZ_TESTE_TECNICO_AGUARDANDO_ATUALIZACAO,
-            ApplicationStatus.RH_NEGOCIACAO
+    // Includes both legacy enum constant names (stored in DB for old records) and new English values.
+    private static final Set<String> INTERVIEW_PROGRESS_STATUSES = Set.of(
+            "ENTREVISTA_MARCADA",
+            "FIZ_A_RH_AGUARDANDO_ATUALIZACAO",
+            "FIZ_A_HIRING_MANAGER_AGUARDANDO_ATUALIZACAO",
+            "TESTE_TECNICO",
+            "FIZ_TESTE_TECNICO_AGUARDANDO_ATUALIZACAO",
+            "RH_NEGOCIACAO",
+            "Pending HR Response",
+            "Pending Hiring Manager Response",
+            "Technical Test",
+            "Pending Technical Test Response",
+            "Offer Negotiation"
     );
 
     private static final String EARLY_BIRD = "EARLY_BIRD";
@@ -210,7 +214,7 @@ public class GamificationService {
 
     @Transactional
     public void onApplicationUpdated(JobApplication application,
-                                     ApplicationStatus previousStatus,
+                                     String previousStatus,
                                      boolean previousInterviewScheduled,
                                      String previousNote) {
         if (!StringUtils.hasText(previousNote) && hasNote(application)) {
@@ -222,17 +226,17 @@ public class GamificationService {
         if (statusEntered(previousStatus, application.getStatus(), INTERVIEW_PROGRESS_STATUSES)) {
             awardInterviewProgress(application, LocalDateTime.now());
         }
-        if (application.getStatus() != previousStatus && qualifiesForOfferWon(application)) {
+        if (!java.util.Objects.equals(application.getStatus(), previousStatus) && qualifiesForOfferWon(application)) {
             awardOfferWon(application, LocalDateTime.now());
         }
     }
 
     @Transactional
-    public void onApplicationStatusUpdated(JobApplication application, ApplicationStatus previousStatus) {
+    public void onApplicationStatusUpdated(JobApplication application, String previousStatus) {
         if (statusEntered(previousStatus, application.getStatus(), INTERVIEW_PROGRESS_STATUSES)) {
             awardInterviewProgress(application, LocalDateTime.now());
         }
-        if (application.getStatus() != previousStatus && qualifiesForOfferWon(application)) {
+        if (!java.util.Objects.equals(application.getStatus(), previousStatus) && qualifiesForOfferWon(application)) {
             awardOfferWon(application, LocalDateTime.now());
         }
     }
@@ -449,7 +453,8 @@ public class GamificationService {
     }
 
     private boolean hasGhostbusterSignal(List<JobApplication> applications) {
-        return applications.stream().anyMatch(application -> application.getStatus() == ApplicationStatus.GHOSTING);
+        return applications.stream().anyMatch(application ->
+                "GHOSTING".equals(application.getStatus()) || "Ghosting".equals(application.getStatus()));
     }
 
     private int calculateCurrentStreak(List<JobApplication> applications) {
@@ -510,15 +515,14 @@ public class GamificationService {
     }
 
     private boolean qualifiesForOfferWon(JobApplication application) {
-        return application.getStatus() == ApplicationStatus.RH_NEGOCIACAO;
+        String s = application.getStatus();
+        return "RH_NEGOCIACAO".equals(s) || "Offer Negotiation".equals(s);
     }
 
-    private boolean statusEntered(ApplicationStatus previousStatus,
-                                  ApplicationStatus currentStatus,
-                                  Set<ApplicationStatus> qualifyingStatuses) {
+    private boolean statusEntered(String previousStatus, String currentStatus, Set<String> qualifyingStatuses) {
         return currentStatus != null
                 && qualifyingStatuses.contains(currentStatus)
-                && currentStatus != previousStatus;
+                && !currentStatus.equals(previousStatus);
     }
 
     private void updateLastActivity(UserGamification state, LocalDateTime occurredAt) {

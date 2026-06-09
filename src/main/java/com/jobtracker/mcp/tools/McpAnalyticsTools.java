@@ -5,7 +5,6 @@ import com.jobtracker.dto.analytics.OrganizationSummary;
 import com.jobtracker.dto.analytics.WeeklySummaryResponse;
 import com.jobtracker.dto.application.ApplicationResponse;
 import com.jobtracker.entity.JobApplication;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.mapper.ApplicationMapper;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.service.ApplicationService;
@@ -78,8 +77,10 @@ public class McpAnalyticsTools {
 
         int total = apps.size();
         int interviewCount = (int) apps.stream().filter(JobApplication::isInterviewScheduled).count();
-        int rejectionCount = (int) apps.stream().filter(a -> ApplicationStatus.REJEITADO == a.getStatus()).count();
-        int ghostingCount = (int) apps.stream().filter(a -> ApplicationStatus.GHOSTING == a.getStatus()).count();
+        int rejectionCount = (int) apps.stream().filter(a ->
+                "REJEITADO".equals(a.getStatus()) || "Rejected".equals(a.getStatus())).count();
+        int ghostingCount = (int) apps.stream().filter(a ->
+                "GHOSTING".equals(a.getStatus()) || "Ghosting".equals(a.getStatus())).count();
 
         double interviewRate = total > 0 ? Math.round(interviewCount * 1000.0 / total) / 10.0 : 0.0;
         double rejectionRate = total > 0 ? Math.round(rejectionCount * 1000.0 / total) / 10.0 : 0.0;
@@ -96,7 +97,7 @@ public class McpAnalyticsTools {
 
         Map<String, Integer> statusBreakdown = new LinkedHashMap<>();
         for (JobApplication app : apps) {
-            String key = app.getStatus() != null ? app.getStatus().getDisplayName() : "To Send Later";
+            String key = app.getStatus() != null ? app.getStatus() : "To Send Later";
             statusBreakdown.merge(key, 1, Integer::sum);
         }
 
@@ -136,7 +137,7 @@ public class McpAnalyticsTools {
                 .map(entry -> {
                     List<JobApplication> orgApps = entry.getValue();
                     List<String> statuses = orgApps.stream()
-                            .map(a -> a.getStatus() != null ? a.getStatus().getDisplayName() : null)
+                            .map(JobApplication::getStatus)
                             .filter(Objects::nonNull)
                             .distinct()
                             .toList();
