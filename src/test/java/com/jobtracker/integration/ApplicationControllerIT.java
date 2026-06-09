@@ -157,9 +157,9 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(patch("/api/v1/applications/{id}/status", id)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"Teste Técnico\"}"))
+                        .content("{\"status\": \"Technical Test\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("Teste Técnico"));
+                .andExpect(jsonPath("$.status").value("Technical Test"));
     }
 
     @Test
@@ -181,7 +181,7 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(patch("/api/v1/applications/{id}/status", id)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"Teste Técnico\"}"))
+                        .content("{\"status\": \"Technical Test\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/v1/dashboard/summary")
@@ -192,13 +192,13 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(patch("/api/v1/applications/{id}/status", id)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"Teste Técnico\"}"))
+                        .content("{\"status\": \"Technical Test\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(patch("/api/v1/applications/{id}/status", id)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"RH (Negociação)\"}"))
+                        .content("{\"status\": \"Offer Negotiation\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/v1/dashboard/summary")
@@ -209,13 +209,13 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(patch("/api/v1/applications/{id}/status", id)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"Rejeitado\"}"))
+                        .content("{\"status\": \"Rejected\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(patch("/api/v1/applications/{id}/status", id)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"Entrevista marcada\"}"))
+                        .content("{\"status\": \"Pending HR Response\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/v1/dashboard/summary")
@@ -325,21 +325,21 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(patch("/api/v1/applications/{id}/status", id)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"Teste Técnico\"}"))
+                        .content("{\"status\": \"Technical Test\"}"))
                 .andExpect(status().isOk());
         assertProfileXp(75, 1);
 
         mockMvc.perform(patch("/api/v1/applications/{id}/status", id)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"Teste Técnico\"}"))
+                        .content("{\"status\": \"Technical Test\"}"))
                 .andExpect(status().isOk());
         assertProfileXp(75, 1);
 
         ApplicationRequest addNoteRequest = new ApplicationRequest(
                 "Gamified App", "Recruiter", "Org",
                 "https://example.com/job", LocalDate.now(),
-                false, false, null, "Teste Técnico", false, "First note", null, null
+                false, false, null, "Technical Test", false, "First note", null, null
         );
 
         mockMvc.perform(put("/api/v1/applications/{id}", id)
@@ -352,7 +352,7 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
         ApplicationRequest updateNoteRequest = new ApplicationRequest(
                 "Gamified App", "Recruiter", "Org",
                 "https://example.com/job", LocalDate.now(),
-                false, false, null, "Teste Técnico", false, "Edited note", null, null
+                false, false, null, "Technical Test", false, "Edited note", null, null
         );
 
         mockMvc.perform(put("/api/v1/applications/{id}", id)
@@ -365,7 +365,7 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(patch("/api/v1/applications/{id}/status", id)
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\": \"RH (Negociação)\"}"))
+                        .content("{\"status\": \"Offer Negotiation\"}"))
                 .andExpect(status().isOk());
         assertProfileXp(580, 3);
     }

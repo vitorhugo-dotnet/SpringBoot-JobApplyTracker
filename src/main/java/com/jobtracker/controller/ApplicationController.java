@@ -209,6 +209,19 @@ public class ApplicationController {
     }
 
     @Operation(
+        summary = "List valid application statuses",
+        description = "Returns all valid status values ordered by display order",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "List of valid status values")
+        }
+    )
+    @PreAuthorize("hasRole('USER') or hasAuthority('SCOPE_read:applications')")
+    @GetMapping("/statuses")
+    public ResponseEntity<List<String>> getStatuses() {
+        return ResponseEntity.ok(applicationService.listStatuses());
+    }
+
+    @Operation(
         summary = "Extract link metadata",
         description = "Extracts rich preview metadata (title, description, image, domain) from a URL",
         responses = {

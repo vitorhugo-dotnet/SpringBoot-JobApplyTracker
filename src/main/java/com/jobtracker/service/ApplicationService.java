@@ -1,12 +1,13 @@
 package com.jobtracker.service;
 
 import com.jobtracker.dto.application.*;
+import com.jobtracker.entity.ApplicationStatusEntity;
 import com.jobtracker.entity.JobApplication;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.exception.BadRequestException;
 import com.jobtracker.exception.ResourceNotFoundException;
 import com.jobtracker.mapper.ApplicationMapper;
 import com.jobtracker.repository.ApplicationRepository;
+import com.jobtracker.repository.ApplicationStatusRepository;
 import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.util.SecurityUtils;
 import io.micrometer.tracing.Span;
@@ -39,6 +40,7 @@ public class ApplicationService {
     );
 
     private final ApplicationRepository applicationRepository;
+    private final ApplicationStatusRepository applicationStatusRepository;
     private final InterviewEventRepository interviewEventRepository;
     private final ApplicationMapper applicationMapper;
     private final GamificationService gamificationService;
@@ -47,6 +49,7 @@ public class ApplicationService {
     private final Tracer tracer;
 
     public ApplicationService(ApplicationRepository applicationRepository,
+                              ApplicationStatusRepository applicationStatusRepository,
                               InterviewEventRepository interviewEventRepository,
                               ApplicationMapper applicationMapper,
                               GamificationService gamificationService,
@@ -54,12 +57,21 @@ public class ApplicationService {
                               SecurityUtils securityUtils,
                               Tracer tracer) {
         this.applicationRepository = applicationRepository;
+        this.applicationStatusRepository = applicationStatusRepository;
         this.interviewEventRepository = interviewEventRepository;
         this.applicationMapper = applicationMapper;
         this.gamificationService = gamificationService;
         this.interviewMetricsService = interviewMetricsService;
         this.securityUtils = securityUtils;
         this.tracer = tracer;
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> listStatuses() {
+        return applicationStatusRepository.findAllByOrderByDisplayOrderAsc()
+                .stream()
+                .map(ApplicationStatusEntity::getName)
+                .toList();
     }
 
     @Transactional
@@ -94,7 +106,7 @@ public class ApplicationService {
         UUID userId = securityUtils.getCurrentUserId();
         JobApplication app = applicationRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
-        ApplicationStatus previousStatus = app.getStatus();
+        String previousStatus = app.getStatus();
         boolean previousInterviewScheduled = app.isInterviewScheduled();
         String previousNote = app.getNote();
         mapRequestToEntity(request, app);
@@ -109,8 +121,8 @@ public class ApplicationService {
         UUID userId = securityUtils.getCurrentUserId();
         JobApplication app = applicationRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
-        ApplicationStatus previousStatus = app.getStatus();
-        applyStatusChange(app, resolveStatus(request.status()));
+        String previousStatus = app.getStatus();
+        applyStatusChange(app, validateStatus(request.status()));
         JobApplication saved = applicationRepository.save(app);
         interviewMetricsService.recordStatusTransition(saved, previousStatus, saved.getStatus());
         gamificationService.onApplicationStatusUpdated(saved, previousStatus);
@@ -205,20 +217,23 @@ public class ApplicationService {
     }
 
     private void mapRequestToEntity(ApplicationRequest request, JobApplication app) {
-        boolean isSendLater = request.status() == null || request.status().isBlank();
+        boolean isSendLater = request.status() == null || request.status().isBlank()
+                || TO_SEND_LATER_STATUS.equalsIgnoreCase(request.status());
         if (!isSendLater && request.applicationDate() == null) {
-            throw new BadRequestException("Application date is required when 'Send Later' is not marked");
+            throw new BadRequestException(
+                    "applicationDate is required when status is provided. Set status to null for 'To Send Later'.");
         }
 
         app.setVacancyName(normalizeOptionalText(request.vacancyName()));
         app.setRecruiterName(request.recruiterName());
         app.setOrganization(request.organization());
         app.setVacancyLink(request.vacancyLink());
+        app.setToSendLater(isSendLater);
         app.setApplicationDate(isSendLater ? null : request.applicationDate());
         app.setRhAcceptedConnection(Boolean.TRUE.equals(request.rhAcceptedConnection()));
         app.setInterviewScheduled(Boolean.TRUE.equals(request.interviewScheduled()));
         app.setNextStepDateTime(request.nextStepDateTime());
-        applyStatusChange(app, resolveStatus(request.status()));
+        applyStatusChange(app, isSendLater ? null : validateStatus(request.status()));
         app.setRecruiterDmReminderEnabled(Boolean.TRUE.equals(request.recruiterDmReminderEnabled()));
         app.setNote(normalizeOptionalText(request.note()));
         app.setPlatform(request.platform());
@@ -227,31 +242,37 @@ public class ApplicationService {
         }
     }
 
-    private void applyStatusChange(JobApplication app, ApplicationStatus newStatus) {
-        ApplicationStatus currentStatus = app.getStatus();
-        if ((newStatus == ApplicationStatus.REJEITADO || newStatus == ApplicationStatus.GHOSTING)
-                && currentStatus != newStatus) {
+    private void applyStatusChange(JobApplication app, String newStatus) {
+        String currentStatus = app.getStatus();
+        if (isRejectedOrGhosting(newStatus) && !newStatus.equals(currentStatus)) {
             app.setPreviousStatus(currentStatus);
         }
-        if (newStatus != ApplicationStatus.REJEITADO && newStatus != ApplicationStatus.GHOSTING) {
+        if (!isRejectedOrGhosting(newStatus)) {
             app.setPreviousStatus(null);
         }
         app.setStatus(newStatus);
         if (newStatus == null) {
             app.setApplicationDate(null);
+            app.setToSendLater(true);
         }
     }
 
-    private ApplicationStatus resolveStatus(String statusName) {
+    private static boolean isRejectedOrGhosting(String status) {
+        if (status == null) return false;
+        return "REJEITADO".equals(status) || "Rejected".equals(status)
+                || "GHOSTING".equals(status) || "Ghosting".equals(status);
+    }
+
+    private String validateStatus(String statusName) {
         if (statusName == null || statusName.isBlank()) {
             return null;
         }
-
-        try {
-            return ApplicationStatus.fromDisplayName(statusName);
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Invalid status value: " + statusName);
+        if (!applicationStatusRepository.existsByName(statusName)) {
+            throw new BadRequestException(
+                    "Invalid status value: '" + statusName
+                    + "'. Call GET /api/v1/applications/statuses for valid options.");
         }
+        return statusName;
     }
 
     private Sort buildSort(String sort) {
@@ -289,12 +310,7 @@ public class ApplicationService {
                 if (TO_SEND_LATER_STATUS.equalsIgnoreCase(status)) {
                     predicates.add(cb.isNull(root.get("status")));
                 } else {
-                    try {
-                        ApplicationStatus appStatus = ApplicationStatus.fromDisplayName(status);
-                        predicates.add(cb.equal(root.get("status"), appStatus));
-                    } catch (IllegalArgumentException e) {
-                        throw new BadRequestException("Invalid status filter: " + status);
-                    }
+                    predicates.add(cb.equal(root.get("status"), status));
                 }
             }
 

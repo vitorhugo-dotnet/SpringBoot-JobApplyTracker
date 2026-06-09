@@ -2,7 +2,6 @@ package com.jobtracker.config;
 
 import com.jobtracker.entity.JobApplication;
 import com.jobtracker.entity.User;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.UserRepository;
 import net.datafaker.Faker;
@@ -95,8 +94,13 @@ public class FakeDataSeeder implements CommandLineRunner {
         return application;
     }
 
-    private ApplicationStatus randomStatus() {
-        ApplicationStatus[] statuses = ApplicationStatus.values();
-        return statuses[ThreadLocalRandom.current().nextInt(statuses.length)];
+    private static final String[] STATUSES = {
+        "RH", "Pending HR Response", "Pending Hiring Manager Response",
+        "Technical Test", "Pending Technical Test Response",
+        "Offer Negotiation", "Ghosting", "Rejected", "Approved"
+    };
+
+    private String randomStatus() {
+        return STATUSES[ThreadLocalRandom.current().nextInt(STATUSES.length)];
     }
 }

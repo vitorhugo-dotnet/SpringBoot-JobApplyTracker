@@ -2,7 +2,6 @@ package com.jobtracker.unit;
 
 import com.jobtracker.entity.JobApplication;
 import com.jobtracker.entity.User;
-import com.jobtracker.entity.enums.ApplicationStatus;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.service.InterviewMetricsService;
@@ -45,26 +44,36 @@ class InterviewMetricsServiceTest {
     }
 
     @Test
-    void isInterviewStatus_shouldDetectDisplayNames() {
-        assertThat(service.isInterviewStatus("Entrevista marcada")).isTrue();
-        assertThat(service.isInterviewStatus("Fiz a RH - Aguardando Atualização")).isTrue();
-        assertThat(service.isInterviewStatus("Teste Técnico")).isTrue();
+    void isInterviewStatus_shouldDetectNewEnglishValues() {
+        assertThat(service.isInterviewStatus("Pending HR Response")).isTrue();
+        assertThat(service.isInterviewStatus("Pending Hiring Manager Response")).isTrue();
+        assertThat(service.isInterviewStatus("Technical Test")).isTrue();
+        assertThat(service.isInterviewStatus("Pending Technical Test Response")).isTrue();
+        assertThat(service.isInterviewStatus("Offer Negotiation")).isTrue();
         assertThat(service.isInterviewStatus("RH")).isFalse();
+        assertThat(service.isInterviewStatus("Rejected")).isFalse();
         assertThat(service.isInterviewStatus("Unknown")).isFalse();
     }
 
     @Test
+    void isInterviewStatus_shouldDetectLegacyConstantNames() {
+        assertThat(service.isInterviewStatus("ENTREVISTA_MARCADA")).isTrue();
+        assertThat(service.isInterviewStatus("FIZ_A_RH_AGUARDANDO_ATUALIZACAO")).isTrue();
+        assertThat(service.isInterviewStatus("TESTE_TECNICO")).isTrue();
+    }
+
+    @Test
     void wasInterviewTriggered_shouldOnlyDetectEntryIntoInterviewStatus() {
-        assertThat(service.wasInterviewTriggered(ApplicationStatus.RH, ApplicationStatus.TESTE_TECNICO)).isTrue();
-        assertThat(service.wasInterviewTriggered(ApplicationStatus.TESTE_TECNICO, ApplicationStatus.TESTE_TECNICO)).isFalse();
-        assertThat(service.wasInterviewTriggered(ApplicationStatus.TESTE_TECNICO, ApplicationStatus.RH_NEGOCIACAO)).isFalse();
-        assertThat(service.wasInterviewTriggered(ApplicationStatus.TESTE_TECNICO, ApplicationStatus.REJEITADO)).isFalse();
-        assertThat(service.wasInterviewTriggered(ApplicationStatus.REJEITADO, ApplicationStatus.RH_NEGOCIACAO)).isTrue();
+        assertThat(service.wasInterviewTriggered("RH", "Technical Test")).isTrue();
+        assertThat(service.wasInterviewTriggered("Technical Test", "Technical Test")).isFalse();
+        assertThat(service.wasInterviewTriggered("Technical Test", "Offer Negotiation")).isFalse();
+        assertThat(service.wasInterviewTriggered("Technical Test", "Rejected")).isFalse();
+        assertThat(service.wasInterviewTriggered("Rejected", "Offer Negotiation")).isTrue();
     }
 
     @Test
     void recordStatusTransition_shouldIncrementCountAndLogEventWhenEnteringInterviewStatus() {
-        service.recordStatusTransition(application, ApplicationStatus.RH, ApplicationStatus.TESTE_TECNICO);
+        service.recordStatusTransition(application, "RH", "Technical Test");
 
         assertThat(application.getInterviewCount()).isEqualTo(1);
         verify(eventRepository).save(any());
@@ -72,7 +81,7 @@ class InterviewMetricsServiceTest {
 
     @Test
     void recordStatusTransition_shouldNotIncrementWhenStayingWithinInterviewStatuses() {
-        service.recordStatusTransition(application, ApplicationStatus.TESTE_TECNICO, ApplicationStatus.RH_NEGOCIACAO);
+        service.recordStatusTransition(application, "Technical Test", "Offer Negotiation");
 
         assertThat(application.getInterviewCount()).isEqualTo(0);
         verify(eventRepository, never()).save(any());
@@ -80,8 +89,8 @@ class InterviewMetricsServiceTest {
 
     @Test
     void recordStatusTransition_shouldNotIncrementForNonInterviewTransitions() {
-        service.recordStatusTransition(application, ApplicationStatus.TESTE_TECNICO, ApplicationStatus.TESTE_TECNICO);
-        service.recordStatusTransition(application, ApplicationStatus.RH, ApplicationStatus.REJEITADO);
+        service.recordStatusTransition(application, "Technical Test", "Technical Test");
+        service.recordStatusTransition(application, "RH", "Rejected");
 
         assertThat(application.getInterviewCount()).isEqualTo(0);
         verify(eventRepository, never()).save(any());
