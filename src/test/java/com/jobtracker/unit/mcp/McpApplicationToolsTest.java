@@ -1,5 +1,6 @@
 package com.jobtracker.unit.mcp;
 
+import com.jobtracker.dto.application.ApplicationFilter;
 import com.jobtracker.dto.application.ApplicationPageResponse;
 import com.jobtracker.dto.application.ApplicationRequest;
 import com.jobtracker.dto.application.ApplicationResponse;
@@ -51,41 +52,38 @@ class McpApplicationToolsTest {
     @Test
     void listApplications_allNullParams_usesDefaults() {
         ApplicationPageResponse expected = new ApplicationPageResponse(List.of(), 0, 20, 0, 0);
-        when(applicationService.getAll(null, null, null, null, null, null, null, 0, 20, "createdAt,desc"))
+        when(applicationService.getAll(any(ApplicationFilter.class), eq(0), eq(20), eq("createdAt,desc")))
                 .thenReturn(expected);
 
         ApplicationPageResponse result = tools.listApplications(null, null, null, null, null, null, null, null, null);
 
         assertThat(result).isEqualTo(expected);
-        verify(applicationService).getAll(null, null, null, null, null, null, null, 0, 20, "createdAt,desc");
+        verify(applicationService).getAll(any(ApplicationFilter.class), eq(0), eq(20), eq("createdAt,desc"));
     }
 
     @Test
     void listApplications_parsesDateStrings() {
         ApplicationPageResponse expected = new ApplicationPageResponse(List.of(), 0, 20, 0, 0);
-        when(applicationService.getAll(
-                any(), any(),
-                eq(LocalDate.of(2025, 1, 1)), eq(LocalDate.of(2025, 6, 30)),
-                any(), any(), any(), eq(0), eq(20), any()))
+        when(applicationService.getAll(any(ApplicationFilter.class), eq(0), eq(20), any()))
                 .thenReturn(expected);
 
         tools.listApplications(null, null, "2025-01-01", "2025-06-30", null, null, null, null, null);
 
-        verify(applicationService).getAll(
-                null, null,
-                LocalDate.of(2025, 1, 1), LocalDate.of(2025, 6, 30),
-                null, null, null, 0, 20, "createdAt,desc");
+        ArgumentCaptor<ApplicationFilter> captor = ArgumentCaptor.forClass(ApplicationFilter.class);
+        verify(applicationService).getAll(captor.capture(), eq(0), eq(20), eq("createdAt,desc"));
+        assertThat(captor.getValue().applicationDateFrom()).isEqualTo(LocalDate.of(2025, 1, 1));
+        assertThat(captor.getValue().applicationDateTo()).isEqualTo(LocalDate.of(2025, 6, 30));
     }
 
     @Test
     void listApplications_honorsExplicitPageAndSort() {
         ApplicationPageResponse expected = new ApplicationPageResponse(List.of(), 2, 5, 0, 0);
-        when(applicationService.getAll(null, null, null, null, null, null, null, 2, 5, "applicationDate,asc"))
+        when(applicationService.getAll(any(ApplicationFilter.class), eq(2), eq(5), eq("applicationDate,asc")))
                 .thenReturn(expected);
 
         tools.listApplications(null, null, null, null, null, null, 2, 5, "applicationDate,asc");
 
-        verify(applicationService).getAll(null, null, null, null, null, null, null, 2, 5, "applicationDate,asc");
+        verify(applicationService).getAll(any(ApplicationFilter.class), eq(2), eq(5), eq("applicationDate,asc"));
     }
 
     @Test

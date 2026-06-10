@@ -170,18 +170,32 @@ public class ApplicationController {
     @PreAuthorize("hasRole('USER') or hasAuthority('SCOPE_read:applications')")
     @GetMapping
     public ResponseEntity<ApplicationPageResponse> getAll(
+            @Parameter(description = "Global free-text search across all fields") @RequestParam(required = false) String search,
             @Parameter(description = "Filter by status") @RequestParam(required = false) String status,
+            @Parameter(description = "Filter by vacancy name") @RequestParam(required = false) String vacancyName,
             @Parameter(description = "Filter by recruiter name") @RequestParam(required = false) String recruiterName,
-            @Parameter(description = "Filter from date (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate applicationDateFrom,
-            @Parameter(description = "Filter to date (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate applicationDateTo,
+            @Parameter(description = "Filter by organization") @RequestParam(required = false) String organization,
+            @Parameter(description = "Filter by note") @RequestParam(required = false) String note,
+            @Parameter(description = "Filter by platform") @RequestParam(required = false) String platform,
+            @Parameter(description = "Filter application date from (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate applicationDateFrom,
+            @Parameter(description = "Filter application date to (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate applicationDateTo,
+            @Parameter(description = "Filter next-step date from (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate nextStepDateFrom,
+            @Parameter(description = "Filter next-step date to (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate nextStepDateTo,
             @Parameter(description = "Filter by interview scheduled flag") @RequestParam(required = false) Boolean interviewScheduled,
             @Parameter(description = "Filter by recruiter DM reminder flag") @RequestParam(required = false) Boolean recruiterDmReminderEnabled,
+            @Parameter(description = "Filter by recruiter accepted connection flag") @RequestParam(required = false) Boolean rhAcceptedConnection,
+            @Parameter(description = "Filter by to-send-later (draft) flag") @RequestParam(required = false) Boolean toSendLater,
+            @Parameter(description = "Minimum interview count (inclusive)") @RequestParam(required = false) Integer interviewCountMin,
+            @Parameter(description = "Maximum interview count (inclusive)") @RequestParam(required = false) Integer interviewCountMax,
             @Parameter(description = "Filter by archived flag (defaults to false)") @RequestParam(required = false) Boolean archived,
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "Sort field") @RequestParam(required = false) String sort) {
-        return ResponseEntity.ok(applicationService.getAll(status, recruiterName, applicationDateFrom,
-                applicationDateTo, interviewScheduled, recruiterDmReminderEnabled, archived, page, size, sort));
+        ApplicationFilter filter = new ApplicationFilter(search, status, vacancyName, recruiterName,
+                organization, note, platform, applicationDateFrom, applicationDateTo,
+                nextStepDateFrom, nextStepDateTo, interviewScheduled, recruiterDmReminderEnabled,
+                rhAcceptedConnection, toSendLater, interviewCountMin, interviewCountMax, archived);
+        return ResponseEntity.ok(applicationService.getAll(filter, page, size, sort));
     }
 
     @Operation(

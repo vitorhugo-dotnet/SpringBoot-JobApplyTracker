@@ -1,5 +1,6 @@
 package com.jobtracker.mcp.tools;
 
+import com.jobtracker.dto.application.ApplicationFilter;
 import com.jobtracker.dto.application.ApplicationPageResponse;
 import com.jobtracker.dto.application.ApplicationRequest;
 import com.jobtracker.dto.application.ApplicationResponse;
@@ -76,12 +77,16 @@ public class McpApplicationTools {
         int       s    = size != null ? size : 20;
         String    so   = sort != null ? sort : "createdAt,desc";
 
+        ApplicationFilter filter = new ApplicationFilter(
+                null, status, null, recruiterName, null, null, null,
+                from, to, null, null, interviewScheduled, null, null, null, null, null, archived);
+
         return metricsCollector.measure(
                 "List-Applications",
                 params("status", status, "recruiterName", recruiterName,
                         "from", applicationDateFrom, "to", applicationDateTo,
                         "page", p, "size", s, "sort", so),
-                () -> applicationService.getAll(status, recruiterName, from, to, interviewScheduled, null, archived, p, s, so));
+                () -> applicationService.getAll(filter, p, s, so));
     }
 
     @McpTool(

@@ -12,7 +12,9 @@ import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.util.SecurityUtils;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,8 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -172,18 +174,13 @@ public class ApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public ApplicationPageResponse getAll(String status, String recruiterName,
-                                           LocalDate applicationDateFrom, LocalDate applicationDateTo,
-                                           Boolean interviewScheduled, Boolean recruiterDmReminderEnabled,
-                                           Boolean archived,
-                                           int page, int size, String sort) {
+    public ApplicationPageResponse getAll(ApplicationFilter filter, int page, int size, String sort) {
         UUID userId = securityUtils.getCurrentUserId();
 
         Sort sortObj = buildSort(sort);
         Pageable pageable = PageRequest.of(page, size, sortObj);
 
-        Specification<JobApplication> spec = buildSpecification(userId, status, recruiterName,
-            applicationDateFrom, applicationDateTo, interviewScheduled, recruiterDmReminderEnabled, archived);
+        Specification<JobApplication> spec = buildSpecification(userId, filter);
 
         Page<JobApplication> resultPage = applicationRepository.findAll(spec, pageable);
 
@@ -294,48 +291,84 @@ public class ApplicationService {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
 
-    private Specification<JobApplication> buildSpecification(UUID userId, String status,
-                                                               String recruiterName,
-                                                               LocalDate applicationDateFrom,
-                                                               LocalDate applicationDateTo,
-                                                               Boolean interviewScheduled,
-                                                               Boolean recruiterDmReminderEnabled,
-                                                               Boolean archived) {
+    private Specification<JobApplication> buildSpecification(UUID userId, ApplicationFilter filter) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("user").get("id"), userId));
-            predicates.add(cb.equal(root.get("archived"), archived != null ? archived : Boolean.FALSE));
+            predicates.add(cb.equal(root.get("archived"),
+                    filter.archived() != null ? filter.archived() : Boolean.FALSE));
 
-            if (status != null && !status.isBlank()) {
-                if (TO_SEND_LATER_STATUS.equalsIgnoreCase(status)) {
+            // Global free-text search: match the query against every meaningful text column.
+            if (StringUtils.hasText(filter.search())) {
+                String like = "%" + filter.search().trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("vacancyName")), like),
+                        cb.like(cb.lower(root.get("recruiterName")), like),
+                        cb.like(cb.lower(root.get("organization")), like),
+                        cb.like(cb.lower(root.get("note")), like),
+                        cb.like(cb.lower(root.get("platform")), like),
+                        cb.like(cb.lower(root.get("status")), like)
+                ));
+            }
+
+            if (StringUtils.hasText(filter.status())) {
+                if (TO_SEND_LATER_STATUS.equalsIgnoreCase(filter.status())) {
                     predicates.add(cb.isNull(root.get("status")));
                 } else {
-                    predicates.add(cb.equal(root.get("status"), status));
+                    predicates.add(cb.equal(root.get("status"), filter.status()));
                 }
             }
 
-            if (recruiterName != null && !recruiterName.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("recruiterName")),
-                        "%" + recruiterName.toLowerCase() + "%"));
+            addLike(predicates, cb, root, "vacancyName", filter.vacancyName());
+            addLike(predicates, cb, root, "recruiterName", filter.recruiterName());
+            addLike(predicates, cb, root, "organization", filter.organization());
+            addLike(predicates, cb, root, "note", filter.note());
+            addLike(predicates, cb, root, "platform", filter.platform());
+
+            if (filter.applicationDateFrom() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("applicationDate"), filter.applicationDateFrom()));
+            }
+            if (filter.applicationDateTo() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("applicationDate"), filter.applicationDateTo()));
             }
 
-            if (applicationDateFrom != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("applicationDate"), applicationDateFrom));
+            if (filter.nextStepDateFrom() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("nextStepDateTime"),
+                        filter.nextStepDateFrom().atStartOfDay()));
+            }
+            if (filter.nextStepDateTo() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("nextStepDateTime"),
+                        filter.nextStepDateTo().atTime(LocalTime.MAX)));
             }
 
-            if (applicationDateTo != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("applicationDate"), applicationDateTo));
+            if (filter.interviewScheduled() != null) {
+                predicates.add(cb.equal(root.get("interviewScheduled"), filter.interviewScheduled()));
+            }
+            if (filter.recruiterDmReminderEnabled() != null) {
+                predicates.add(cb.equal(root.get("recruiterDmReminderEnabled"), filter.recruiterDmReminderEnabled()));
+            }
+            if (filter.rhAcceptedConnection() != null) {
+                predicates.add(cb.equal(root.get("rhAcceptedConnection"), filter.rhAcceptedConnection()));
+            }
+            if (filter.toSendLater() != null) {
+                predicates.add(cb.equal(root.get("toSendLater"), filter.toSendLater()));
             }
 
-            if (interviewScheduled != null) {
-                predicates.add(cb.equal(root.get("interviewScheduled"), interviewScheduled));
+            if (filter.interviewCountMin() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("interviewCount"), filter.interviewCountMin()));
             }
-
-            if (recruiterDmReminderEnabled != null) {
-                predicates.add(cb.equal(root.get("recruiterDmReminderEnabled"), recruiterDmReminderEnabled));
+            if (filter.interviewCountMax() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("interviewCount"), filter.interviewCountMax()));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    private static void addLike(List<Predicate> predicates, CriteriaBuilder cb,
+                                Root<JobApplication> root, String field, String value) {
+        if (StringUtils.hasText(value)) {
+            predicates.add(cb.like(cb.lower(root.get(field)), "%" + value.trim().toLowerCase() + "%"));
+        }
     }
 }

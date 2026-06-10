@@ -275,7 +275,7 @@ class ApplicationServiceTest {
         when(applicationRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
         when(applicationMapper.toResponse(app)).thenReturn(response);
 
-        ApplicationPageResponse result = applicationService.getAll(null, null, null, null, null, null, false, 0, 10, null);
+        ApplicationPageResponse result = applicationService.getAll(filterArchived(false), 0, 10, null);
         assertThat(result.applications()).hasSize(1);
         assertThat(result.totalElements()).isEqualTo(1);
     }
@@ -283,9 +283,14 @@ class ApplicationServiceTest {
     @Test
     void getAll_shouldThrow_whenInvalidSortField() {
         when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
-        assertThatThrownBy(() -> applicationService.getAll(null, null, null, null, null, null, false, 0, 10, "invalidField,asc"))
+        assertThatThrownBy(() -> applicationService.getAll(filterArchived(false), 0, 10, "invalidField,asc"))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Invalid sort field");
+    }
+
+    private static ApplicationFilter filterArchived(Boolean archived) {
+        return new ApplicationFilter(null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, archived);
     }
 
     @Test
