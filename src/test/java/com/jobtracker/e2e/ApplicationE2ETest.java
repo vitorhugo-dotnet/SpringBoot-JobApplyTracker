@@ -153,7 +153,7 @@ class ApplicationE2ETest extends AbstractE2ETest {
                 .get("/api/v1/applications")
                 .then()
                 .statusCode(200)
-                .body("content", hasSize(1))
+                .body("applications", hasSize(1))
                 .body("totalElements", equalTo(1));
 
         // 7. Archive
