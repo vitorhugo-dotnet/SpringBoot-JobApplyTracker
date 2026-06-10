@@ -99,6 +99,10 @@ public class AuthorizationServerConfig {
 
         http
                 .securityMatcher(authServerMatcher)
+                // Without CORS on this chain, browser-based public clients (ChatGPT does
+                // the PKCE token exchange from chatgpt.com) have their preflight to
+                // /oauth2/token rejected with 403 and can never redeem the code.
+                .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/login", "/default-ui.css").permitAll()
                         .anyRequest().authenticated())

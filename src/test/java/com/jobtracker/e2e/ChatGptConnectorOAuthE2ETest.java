@@ -262,7 +262,21 @@ class ChatGptConnectorOAuthE2ETest {
         assertThat(code).isNotBlank();
 
         // --- Step 5: token exchange, public client (auth method none) + PKCE ---
+        // ChatGPT runs this exchange from the user's browser (origin chatgpt.com), so
+        // the browser first sends a CORS preflight. If it is rejected, the POST never
+        // happens, the code is never redeemed, and the connector fails generically.
+        Response preflight = given()
+                .header("Origin", "https://chatgpt.com")
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers", "content-type")
+                .options("/oauth2/token");
+        assertThat(preflight.statusCode())
+                .as("CORS preflight from chatgpt.com must be accepted on the token endpoint")
+                .isEqualTo(200);
+        assertThat(preflight.header("Access-Control-Allow-Origin")).isNotNull();
+
         Response token = given()
+                .header("Origin", "https://chatgpt.com")
                 .contentType(ContentType.URLENC)
                 .formParam("grant_type", "authorization_code")
                 .formParam("code", code)
@@ -275,9 +289,26 @@ class ChatGptConnectorOAuthE2ETest {
         assertThat(token.statusCode())
                 .as("token exchange for the DCR public client must succeed: %s", token.asString())
                 .isEqualTo(200);
+        assertThat(token.header("Access-Control-Allow-Origin"))
+                .as("the browser also requires CORS headers on the actual token response")
+                .isNotNull();
         assertThat(token.jsonPath().getString("token_type")).isEqualToIgnoringCase("Bearer");
         String accessToken = token.jsonPath().getString("access_token");
         assertThat(accessToken).isNotBlank();
+
+        // --- Step 5b: ChatGPT has "OIDC enabled" and calls /userinfo with the access
+        // token right after the exchange (authorization domain claiming). Spring AS
+        // requires oauth2ResourceServer on the AS chain for this endpoint to accept
+        // Bearer tokens — without it ChatGPT fails here even though tokens were issued.
+        Response userinfo = given()
+                .accept(ContentType.JSON)
+                .header("Authorization", "Bearer " + accessToken)
+                .get("/userinfo");
+        assertThat(userinfo.statusCode())
+                .as("OIDC userinfo must accept the issued Bearer token: %s", userinfo.asString())
+                .isEqualTo(200);
+        assertThat(userinfo.jsonPath().getString("sub")).isEqualTo(USER_EMAIL);
+        assertThat(userinfo.jsonPath().getString("email")).isEqualTo(USER_EMAIL);
 
         // --- Step 6: the authenticated MCP call ChatGPT makes right after connecting ---
         Response mcp = given()
