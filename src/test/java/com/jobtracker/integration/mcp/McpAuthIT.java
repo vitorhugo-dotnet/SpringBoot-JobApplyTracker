@@ -67,9 +67,15 @@ class McpAuthIT extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        googleDriveConnectionRepository.deleteAll();
-        refreshTokenRepository.deleteAll();
+        // Delete in FK dependency order: children before parents.
+        // interview_events → job_applications → users; all other *_user tables → users.
         interviewEventRepository.deleteAll();
+        applicationRepository.deleteAll();
+        userAchievementRepository.deleteAll();
+        userGamificationRepository.deleteAll();
+        passwordResetTokenRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
+        googleDriveConnectionRepository.deleteAll();
         userInterviewMetricsRepository.deleteAll();
         userRepository.deleteAll();
 
