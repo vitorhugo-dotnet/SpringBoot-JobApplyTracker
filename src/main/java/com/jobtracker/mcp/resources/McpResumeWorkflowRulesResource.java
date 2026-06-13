@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class McpResumeWorkflowRulesResource {
 
-    private static final String LAST_MODIFIED = "2026-06-04";
+    private static final String LAST_MODIFIED = "2026-06-13";
 
     @McpResource(
             uri = McpResourcesConfig.URI_RESUME_WORKFLOW_RULES,
@@ -27,8 +27,12 @@ public class McpResumeWorkflowRulesResource {
 
                 Execute these steps in order:
 
-                1. List-Applications — find the newest application with a non-empty driveResumeFileId.
-                2. Read resource://job-apply-tracker/generated-resume/{applicationId} — use that resume as the real CV source.
+                1. Read my base information FIRST (mandatory, top priority). Call List-Base-Information and read every
+                   document via Get-Base-Information-Content (or resource://job-apply-tracker/base-information/{infoId}).
+                   This is the AUTHORITATIVE, highest-priority source of truth about the candidate. You MUST read it
+                   before generating any CV content. If no base information exists, fall back to step 2.
+                2. (Secondary) List-Applications — find the newest application with a non-empty driveResumeFileId and read
+                   resource://job-apply-tracker/generated-resume/{applicationId} as a supplementary CV source.
                 3. Call List-Base-Resumes — pick the template by vacancy language (PT → PT-BR template, EN → EN-US template).
                    Alternatively read resource://job-apply-tracker/base-resumes if the tool is unavailable.
                 4. Detect-Resume-Placeholders — call this before Generate-Resume every time.
@@ -37,11 +41,13 @@ public class McpResumeWorkflowRulesResource {
                 7. Generate-Resume — provide every detected placeholder value.
 
                 Rules:
+                - ALWAYS read base information (step 1) before generating any CV content when any base information exists.
+                  Base information is the authoritative source; a prior generated resume is only a secondary supplement.
                 - Never use a base resume template as the data source.
-                - Never invent experience, technologies, projects, or certifications.
+                - Never invent experience, technologies, projects, or certifications — ground everything in base information.
                 - Placeholder keys must match Detect-Resume-Placeholders exactly, without curly braces.
-                - If no prior generated resume exists, ask the user for their CV text because this MCP
-                  setup does not expose generic Drive search or file-read tools.
+                - If neither base information nor a prior generated resume exists, ask the user for their CV text because
+                  this MCP setup does not expose generic Drive search or file-read tools.
                 - If Generate-Resume fails, keep the application record and return the placeholder values.
 
                 ID disambiguation:

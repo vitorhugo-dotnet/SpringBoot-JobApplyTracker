@@ -5,6 +5,7 @@ import com.jobtracker.dto.dashboard.DashboardSummaryResponse;
 import com.jobtracker.dto.gamification.AchievementResponse;
 import com.jobtracker.dto.gamification.GamificationProfileResponse;
 import com.jobtracker.mcp.resources.McpReadOnlySnapshotResources;
+import com.jobtracker.service.BaseInformationService;
 import com.jobtracker.service.DashboardService;
 import com.jobtracker.service.GamificationService;
 import com.jobtracker.service.GoogleDriveService;
@@ -36,6 +37,9 @@ class McpDashboardToolsTest {
     private GoogleDriveService googleDriveService;
 
     @Mock
+    private BaseInformationService baseInformationService;
+
+    @Mock
     private AuthMapper authMapper;
 
     @Mock
@@ -51,6 +55,7 @@ class McpDashboardToolsTest {
                 dashboardService,
                 gamificationService,
                 googleDriveService,
+                baseInformationService,
                 authMapper,
                 securityUtils,
                 objectMapper);

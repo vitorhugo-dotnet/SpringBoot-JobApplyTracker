@@ -127,9 +127,12 @@ public class McpGoogleDriveTools {
                     the Google Doc and the PDF.
 
                     Prerequisites (call in order before this tool):
-                    1. List-Base-Resumes — obtain the baseResumeId for the vacancy language.
-                    2. Detect-Resume-Placeholders — retrieve the exact placeholder key names.
-                    3. Provide a value for every detected placeholder key (keys without braces, \
+                    1. List-Base-Information + Get-Base-Information-Content — you MUST read the candidate's base \
+                       information first. It is the authoritative source of truth about the candidate; never generate \
+                       values from the template/vacancy alone and never invent experience, skills, or projects.
+                    2. List-Base-Resumes — obtain the baseResumeId for the vacancy language.
+                    3. Detect-Resume-Placeholders — retrieve the exact placeholder key names.
+                    4. Provide a value for every detected placeholder key (keys without braces, \
                        e.g. "RESUMO", "STACK", "PROJETO_1").
 
                     Do NOT call this tool before Create-Application — you need the applicationId first.""",

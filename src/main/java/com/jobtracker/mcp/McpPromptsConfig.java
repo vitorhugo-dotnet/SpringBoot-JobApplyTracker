@@ -34,9 +34,9 @@ public class McpPromptsConfig {
                 Content generated for the CV must be written in the vacancy language.
 
                 Execute the complete workflow autonomously, without waiting for intermediate confirmations.
-                Stop only for genuinely necessary questions (see Step 5).
+                Stop only for genuinely necessary questions (see Step 7).
 
-                Before executing steps 7 and 8, read the resources:
+                Before executing steps 8 and 9, read the resources:
                   %s  (application field rules)
                   %s  (mandatory CV generation sequence)
                   %s  (allowed status values)
@@ -57,41 +57,47 @@ public class McpPromptsConfig {
                 return a message indicating that an application already exists and provide its UUID. Do not proceed with the workflow if a duplicate application is
                 found. If no duplicate application exists, proceed to the next step.
 
-                STEP 3 - Read my REAL resume (required before generating any content)
+                STEP 3 - Read my BASE INFORMATION (TOP PRIORITY, mandatory before generating any content)
+                - Call List-Base-Information and read EVERY document via Get-Base-Information-Content
+                  (or resource://job-apply-tracker/base-information/{infoId}).
+                - This is the AUTHORITATIVE, highest-priority source of truth about me. You MUST read it before
+                  generating any CV content.
+                Extract: experience, real stack, projects, education, certifications, achievements, languages.
+                NEVER invent experience, technologies, projects, or certifications — ground everything in my base information.
+
+                STEP 4 - Read my real resume (secondary/supplementary source)
                 - Call List-Applications and select the most recent application with driveResumeFileId populated.
                 - If such an application exists, read resource://job-apply-tracker/generated-resume/{applicationId}
-                  for the selected application and use that text as the real CV source.
-                - If no prior CV exists, ask for the current CV text because this MCP does not expose generic
-                  Drive search or file reading.
-                Extract: experience, real stack, projects, education, certifications, achievements, languages.
-                NEVER invent experience, technologies, projects, or certifications.
+                  and use it to supplement (never override) my base information.
+                - If neither base information nor a prior CV exists, ask for the current CV text because this MCP does
+                  not expose generic Drive search or file reading.
 
-                STEP 4 - List and select a CV template
+                STEP 5 - List and select a CV template
                 Call List-Base-Resumes. Select by language field (PT→PT-BR template; EN→EN-US template).
                 Do not ask if there is only one template per language.
 
-                STEP 5 - Detect placeholders
-                Call Detect-Resume-Placeholders with the baseResumeId obtained in STEP 3 (see resume-workflow-rules).
+                STEP 6 - Detect placeholders
+                Call Detect-Resume-Placeholders with the baseResumeId obtained in STEP 5 (see resume-workflow-rules).
                 The baseResumeId is the UUID from List-Base-Resumes — it is NOT a Google Drive fileId.
 
-                STEP 6 - Questions
-                Ask ONLY if a piece of information is missing from both the real CV AND the vacancy.
-                Be it stack, seniority, projects, or even the vacancy name or organization. Always cross-check between CV and vacancy before asking.
+                STEP 7 - Questions
+                Ask ONLY if a piece of information is missing from my base information, the real CV, AND the vacancy.
+                Be it stack, seniority, projects, or even the vacancy name or organization. Always cross-check first before asking.
 
-                STEP 7 - Generate placeholder values
-                Cross-check the real CV (step 2) with the vacancy requirements (step 1). ATS-friendly, without inventing anything.
-                Follow resume-workflow-rules for completeness and key formatting.
+                STEP 8 - Generate placeholder values
+                Cross-check my base information (step 3) and real CV (step 4) with the vacancy requirements (step 1).
+                ATS-friendly, without inventing anything. Follow resume-workflow-rules for completeness and key formatting.
 
-                STEP 8 - Create the application
+                STEP 9 - Create the application
                 Follow application-creation-rules. Call Create-Application with the extracted data.
                 Do NOT fill nextStepDateTime.
                 Note: ATS-focused summary (stack, seniority, fit, gaps).
 
-                STEP 9 - Generate the filled CV
+                STEP 10 - Generate the filled CV
                 Only after Create-Application returns a valid UUID AND all placeholders are generated.
                 Follow resume-workflow-rules. Call Generate-Resume and return the Google Doc link.
 
-                STEP 10 - Final delivery (in PT-BR)
+                STEP 11 - Final delivery (in PT-BR)
                 1. Link to the generated CV
                 2. Detected placeholders + generated value for each one
                 3. UUID and status of the created application
@@ -186,6 +192,8 @@ public class McpPromptsConfig {
                 I want to tailor a resume for job application ID: %s
 
                 1. Call `Get-Application` with id="%s" to see the vacancy name, organization, and language context.
+                   Before writing any tailored content, read my base information (`List-Base-Information` →
+                   `Get-Base-Information-Content`) as the authoritative source of truth about me.
                 2. Call `List-Base-Resumes` to see all available resume templates with their UUIDs and language codes.
                 3. Select the template matching the vacancy language (PT → PT-BR, EN → EN-US).
                    Ask me which template to use only if the choice is ambiguous.

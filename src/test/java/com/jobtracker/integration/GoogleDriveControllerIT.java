@@ -11,6 +11,7 @@ import com.jobtracker.entity.Role;
 import com.jobtracker.entity.User;
 import com.jobtracker.entity.enums.RoleName;
 import com.jobtracker.repository.ApplicationRepository;
+import com.jobtracker.repository.GoogleDriveBaseInformationRepository;
 import com.jobtracker.repository.GoogleDriveBaseResumeRepository;
 import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.repository.GoogleDriveOAuthStateRepository;
@@ -65,6 +66,7 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
     @Autowired private UserInterviewMetricsRepository userInterviewMetricsRepository;
     @Autowired private GoogleDriveConnectionRepository googleDriveConnectionRepository;
     @Autowired private GoogleDriveBaseResumeRepository googleDriveBaseResumeRepository;
+    @Autowired private GoogleDriveBaseInformationRepository googleDriveBaseInformationRepository;
     @Autowired private GoogleDriveOAuthStateRepository googleDriveOAuthStateRepository;
     @Autowired private RoleRepository roleRepository;
     @Autowired private FakeGoogleDriveApiClient googleDriveApiClient;
@@ -77,6 +79,7 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
         googleDriveApiClient.reset();
         googleDriveOAuthStateRepository.deleteAll();
         googleDriveBaseResumeRepository.deleteAll();
+        googleDriveBaseInformationRepository.deleteAll();
         googleDriveConnectionRepository.deleteAll();
         userAchievementRepository.deleteAll();
         userGamificationRepository.deleteAll();
@@ -538,6 +541,108 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
         assertThat(saved.getFirst().isTemplate()).isTrue();
     }
 
+    @Test
+    void addBaseInformation_shouldPersistMarkdownDocumentAndReturn201() throws Exception {
+        GoogleDriveConnection connection = googleDriveConnectionRepository.save(buildConnection());
+        googleDriveApiClient.fileMetadataById.put("about-md",
+                new GoogleDriveApiClient.DriveFileMetadata(
+                        "about-md",
+                        "about-me.md",
+                        GoogleDriveApiClient.MARKDOWN_MIME_TYPE,
+                        "https://drive.google.com/file/d/about-md/view"
+                ));
+
+        mockMvc.perform(post("/api/v1/google-drive/base-information")
+                        .header("Authorization", "Bearer " + betaAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"documentIdOrUrl\":\"about-md\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("about-me.md"))
+                .andExpect(jsonPath("$.docType").value("MARKDOWN"));
+
+        assertThat(googleDriveBaseInformationRepository.findAllByConnectionIdOrderByCreatedAtAsc(connection.getId()))
+                .hasSize(1);
+    }
+
+    @Test
+    void addBaseInformation_shouldRejectUnsupportedFileType() throws Exception {
+        googleDriveConnectionRepository.save(buildConnection());
+        googleDriveApiClient.fileMetadataById.put("image-id",
+                new GoogleDriveApiClient.DriveFileMetadata(
+                        "image-id", "headshot.png", "image/png", null));
+
+        mockMvc.perform(post("/api/v1/google-drive/base-information")
+                        .header("Authorization", "Bearer " + betaAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"documentIdOrUrl\":\"image-id\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void listBaseInformation_shouldReturnRegisteredDocuments() throws Exception {
+        GoogleDriveConnection connection = googleDriveConnectionRepository.save(buildConnection());
+        com.jobtracker.entity.GoogleDriveBaseInformation info = new com.jobtracker.entity.GoogleDriveBaseInformation();
+        info.setConnection(connection);
+        info.setGoogleFileId("about-md");
+        info.setDocumentName("about-me.md");
+        info.setDocType(com.jobtracker.entity.enums.BaseInformationDocType.MARKDOWN);
+        info.setWebViewLink("https://drive.google.com/file/d/about-md/view");
+        googleDriveBaseInformationRepository.save(info);
+
+        mockMvc.perform(get("/api/v1/google-drive/base-information")
+                        .header("Authorization", "Bearer " + betaAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value(info.getId().toString()))
+                .andExpect(jsonPath("$[0].name").value("about-me.md"))
+                .andExpect(jsonPath("$[0].docType").value("MARKDOWN"));
+    }
+
+    @Test
+    void listBaseInformation_shouldReturn403_whenUserDoesNotHaveBetaRole() throws Exception {
+        mockMvc.perform(get("/api/v1/google-drive/base-information")
+                        .header("Authorization", "Bearer " + nonBetaAccessToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getBaseInformationContent_shouldExtractMarkdownText() throws Exception {
+        GoogleDriveConnection connection = googleDriveConnectionRepository.save(buildConnection());
+        com.jobtracker.entity.GoogleDriveBaseInformation info = new com.jobtracker.entity.GoogleDriveBaseInformation();
+        info.setConnection(connection);
+        info.setGoogleFileId("about-md");
+        info.setDocumentName("about-me.md");
+        info.setDocType(com.jobtracker.entity.enums.BaseInformationDocType.MARKDOWN);
+        googleDriveBaseInformationRepository.save(info);
+        googleDriveApiClient.setFileBytes("about-md",
+                "# About Me\nSenior Java Developer".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        mockMvc.perform(get("/api/v1/google-drive/base-information/" + info.getId() + "/content")
+                        .header("Authorization", "Bearer " + betaAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(info.getId().toString()))
+                .andExpect(jsonPath("$.docType").value("MARKDOWN"))
+                .andExpect(jsonPath("$.content").value(org.hamcrest.Matchers.containsString("Senior Java Developer")));
+    }
+
+    @Test
+    void deleteBaseInformation_shouldRemoveDocumentAndReturn200() throws Exception {
+        GoogleDriveConnection connection = googleDriveConnectionRepository.save(buildConnection());
+        com.jobtracker.entity.GoogleDriveBaseInformation info = new com.jobtracker.entity.GoogleDriveBaseInformation();
+        info.setConnection(connection);
+        info.setGoogleFileId("about-md");
+        info.setDocumentName("about-me.md");
+        info.setDocType(com.jobtracker.entity.enums.BaseInformationDocType.MARKDOWN);
+        googleDriveBaseInformationRepository.save(info);
+
+        mockMvc.perform(delete("/api/v1/google-drive/base-information/" + info.getId())
+                        .header("Authorization", "Bearer " + betaAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Base information deleted successfully"));
+
+        assertThat(googleDriveBaseInformationRepository.findAll()).isEmpty();
+    }
+
     private GoogleDriveConnection buildConnectionWithRootFolder() {
         GoogleDriveConnection connection = buildConnection();
         connection.setRootFolderId("root-folder-id");
@@ -590,16 +695,22 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
                 new GoogleDriveAccountProfile("perm-123", "connected@example.com", "Drive User");
         private final Map<String, DriveFileMetadata> fileMetadataById = new HashMap<>();
         private final Map<String, String> documentTextById = new HashMap<>();
+        private final Map<String, byte[]> fileBytesById = new HashMap<>();
 
         void reset() {
             fileMetadataById.clear();
             documentTextById.clear();
+            fileBytesById.clear();
             documentTextById.put("resume-file-id", DEFAULT_TEMPLATE_TEXT);
             documentTextById.put("copied-file", DEFAULT_TEMPLATE_TEXT);
         }
 
         void setDocumentText(String documentId, String text) {
             documentTextById.put(documentId, text);
+        }
+
+        void setFileBytes(String fileId, byte[] bytes) {
+            fileBytesById.put(fileId, bytes);
         }
 
         @Override
@@ -674,7 +785,7 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
 
         @Override
         public byte[] downloadFileBytes(String accessToken, String fileId) {
-            return new byte[0];
+            return fileBytesById.getOrDefault(fileId, new byte[0]);
         }
     }
 }

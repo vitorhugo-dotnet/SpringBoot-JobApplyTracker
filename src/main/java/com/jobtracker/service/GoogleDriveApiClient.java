@@ -9,6 +9,8 @@ public interface GoogleDriveApiClient {
     String GOOGLE_DOC_MIME_TYPE = "application/vnd.google-apps.document";
     String GOOGLE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
     String PDF_MIME_TYPE = "application/pdf";
+    String DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    String MARKDOWN_MIME_TYPE = "text/markdown";
 
     String buildAuthorizationUrl(String state);
 

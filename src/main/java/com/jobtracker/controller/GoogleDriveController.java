@@ -2,6 +2,7 @@ package com.jobtracker.controller;
 
 import com.jobtracker.dto.auth.MessageResponse;
 import com.jobtracker.dto.gdrive.*;
+import com.jobtracker.service.BaseInformationService;
 import com.jobtracker.service.GoogleDriveGeneratedResumeDownloadService;
 import com.jobtracker.service.GoogleDriveOAuthService;
 import com.jobtracker.service.GoogleDriveService;
@@ -37,15 +38,18 @@ public class GoogleDriveController {
     private final GoogleDriveService googleDriveService;
     private final ResumeGenerationService resumeGenerationService;
     private final GoogleDriveGeneratedResumeDownloadService generatedResumeDownloadService;
+    private final BaseInformationService baseInformationService;
 
     public GoogleDriveController(GoogleDriveOAuthService googleDriveOAuthService,
                                  GoogleDriveService googleDriveService,
                                  ResumeGenerationService resumeGenerationService,
-                                 GoogleDriveGeneratedResumeDownloadService generatedResumeDownloadService) {
+                                 GoogleDriveGeneratedResumeDownloadService generatedResumeDownloadService,
+                                 BaseInformationService baseInformationService) {
         this.googleDriveOAuthService = googleDriveOAuthService;
         this.googleDriveService = googleDriveService;
         this.resumeGenerationService = resumeGenerationService;
         this.generatedResumeDownloadService = generatedResumeDownloadService;
+        this.baseInformationService = baseInformationService;
     }
 
     @Operation(
@@ -128,6 +132,60 @@ public class GoogleDriveController {
     public ResponseEntity<MessageResponse> deleteBaseResume(@PathVariable UUID baseResumeId) {
         googleDriveService.deleteBaseResume(baseResumeId);
         return ResponseEntity.ok(new MessageResponse("Base resume deleted successfully"));
+    }
+
+    @Operation(
+            summary = "Register a base information document",
+            description = "Registers a Google Drive document (Google Docs, PDF, DOCX, or Markdown) as base information " +
+                    "about the candidate. This is the authoritative, highest-priority source AIs read before generating any CV content.",
+            responses = @ApiResponse(responseCode = "201", description = "Base information registered successfully",
+                    content = @Content(schema = @Schema(implementation = BaseInformationResponse.class)))
+    )
+    @PreAuthorize("hasRole('BETA')")
+    @PostMapping("/base-information")
+    public ResponseEntity<BaseInformationResponse> addBaseInformation(
+            @Valid @RequestBody BaseInformationRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(baseInformationService.addBaseInformation(request));
+    }
+
+    @Operation(
+            summary = "List all base information documents for the authenticated user",
+            description = "Returns lightweight metadata for all base information documents registered by the authenticated user. " +
+                    "Use the returned UUID `id` field in subsequent API calls.",
+            responses = @ApiResponse(responseCode = "200", description = "List of base information documents",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = BaseInformationResponse.class))))
+    )
+    @PreAuthorize("hasRole('BETA') and (hasRole('USER') or hasAuthority('SCOPE_read:resume'))")
+    @GetMapping("/base-information")
+    public ResponseEntity<List<BaseInformationResponse>> listBaseInformation() {
+        return ResponseEntity.ok(baseInformationService.listBaseInformation());
+    }
+
+    @Operation(summary = "Delete a configured base information document")
+    @PreAuthorize("hasRole('BETA')")
+    @DeleteMapping("/base-information/{baseInformationId}")
+    public ResponseEntity<MessageResponse> deleteBaseInformation(@PathVariable UUID baseInformationId) {
+        baseInformationService.deleteBaseInformation(baseInformationId);
+        return ResponseEntity.ok(new MessageResponse("Base information deleted successfully"));
+    }
+
+    @Operation(
+            summary = "Get plain text content of a base information document",
+            description = "Reads and returns the plain text content of the specified base information document " +
+                    "(Google Docs, PDF, DOCX, or Markdown). The `baseInformationId` path parameter MUST be a UUID — filenames are NOT valid.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Base information content retrieved",
+                            content = @Content(schema = @Schema(implementation = BaseInformationContentResponse.class))),
+                    @ApiResponse(responseCode = "404", description = "Base information not found")
+            }
+    )
+    @PreAuthorize("hasRole('BETA') and (hasRole('USER') or hasAuthority('SCOPE_read:resume'))")
+    @GetMapping("/base-information/{baseInformationId}/content")
+    public ResponseEntity<BaseInformationContentResponse> getBaseInformationContent(
+            @Parameter(description = "UUID of the base information document. NOT the filename.",
+                    schema = @Schema(type = "string", format = "uuid"))
+            @PathVariable UUID baseInformationId) {
+        return ResponseEntity.ok(baseInformationService.getBaseInformationContent(baseInformationId));
     }
 
     @Operation(
@@ -225,6 +283,10 @@ public class GoogleDriveController {
 
     @Operation(summary = "Generate an application resume by replacing template placeholders",
         description = """
+        BEFORE generating values you MUST read the candidate's base information
+        (GET /base-information then GET /base-information/{id}/content). Base information is the
+        authoritative source of truth about the candidate — never invent content or rely on the
+        template/vacancy alone.
         values is REQUIRED.
         Keys must match the placeholders returned by the placeholder detection endpoint.
         Use RESUMO instead of {{RESUMO}}.

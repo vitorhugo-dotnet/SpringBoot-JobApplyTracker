@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtracker.dto.auth.UserResponse;
 import com.jobtracker.mapper.AuthMapper;
 import com.jobtracker.mcp.McpResourcesConfig;
+import com.jobtracker.service.BaseInformationService;
 import com.jobtracker.service.DashboardService;
 import com.jobtracker.service.GamificationService;
 import com.jobtracker.service.GoogleDriveService;
@@ -23,6 +24,7 @@ public class McpReadOnlySnapshotResources {
     private final DashboardService dashboardService;
     private final GamificationService gamificationService;
     private final GoogleDriveService googleDriveService;
+    private final BaseInformationService baseInformationService;
     private final AuthMapper authMapper;
     private final SecurityUtils securityUtils;
     private final ObjectMapper objectMapper;
@@ -30,12 +32,14 @@ public class McpReadOnlySnapshotResources {
     public McpReadOnlySnapshotResources(DashboardService dashboardService,
                                         GamificationService gamificationService,
                                         GoogleDriveService googleDriveService,
+                                        BaseInformationService baseInformationService,
                                         AuthMapper authMapper,
                                         SecurityUtils securityUtils,
                                         ObjectMapper objectMapper) {
         this.dashboardService = dashboardService;
         this.gamificationService = gamificationService;
         this.googleDriveService = googleDriveService;
+        this.baseInformationService = baseInformationService;
         this.authMapper = authMapper;
         this.securityUtils = securityUtils;
         this.objectMapper = objectMapper;
@@ -111,6 +115,24 @@ public class McpReadOnlySnapshotResources {
                     priority = 0.9d))
     public String baseResumes() {
         return toJson(googleDriveService.listBaseResumes());
+    }
+
+    @PreAuthorize("hasRole('BETA')")
+    @McpResource(
+            uri = McpResourcesConfig.URI_BASE_INFORMATION,
+            name = "Base Information",
+            title = "Base Information",
+            description = "JSON list of the candidate's base information documents (Google Docs, PDF, DOCX, or Markdown). " +
+                    "This is the authoritative, highest-priority source of truth about the candidate. Each entry includes the UUID (id) " +
+                    "required by Get-Base-Information-Content, the display name, and the docType. Read every document before generating any CV content. " +
+                    "Alternatively, call the List-Base-Information tool to fetch the same data.",
+            mimeType = "application/json",
+            annotations = @McpAnnotations(
+                    audience = {Role.USER, Role.ASSISTANT},
+                    lastModified = LAST_MODIFIED,
+                    priority = 0.95d))
+    public String baseInformation() {
+        return toJson(baseInformationService.listBaseInformation());
     }
 
     @McpResource(

@@ -120,6 +120,20 @@ Flyway seeds the roles catalog (`USER`, `BETA`, `ADMIN`) and then assigns `ROLE_
 | POST | `/api/v1/google-drive/base-resumes` | Register a Google Docs base resume by Google Docs URL or file ID |
 | DELETE | `/api/v1/google-drive/base-resumes/{baseResumeId}` | Remove a configured base resume |
 | POST | `/api/v1/google-drive/applications/{applicationId}/resume-copies` | Copy a configured base resume into the application's Drive subfolder |
+| POST | `/api/v1/google-drive/base-information` | Register a base information document (Google Docs, PDF, DOCX, or Markdown) by Drive URL or file ID |
+| GET | `/api/v1/google-drive/base-information` | List the user's configured base information documents |
+| DELETE | `/api/v1/google-drive/base-information/{baseInformationId}` | Remove a configured base information document |
+| GET | `/api/v1/google-drive/base-information/{baseInformationId}/content` | Extract the plain-text content of a base information document |
+
+### Base information about the candidate
+
+Base information documents (Google Docs, PDF, DOCX, or Markdown hosted on the user's Drive)
+describe the candidate — real experience, projects, skills, and background. They are the
+**authoritative, highest-priority source of truth about the candidate**: AIs MUST read them
+(via `List-Base-Information` → `Get-Base-Information-Content`, or the
+`resource://job-apply-tracker/base-information` resources) **before generating any CV content**.
+A prior generated resume is only a secondary supplement. This is enforced in the MCP
+`Intake-Vacancy` prompt, the `resume-workflow-rules` resource, and the `Generate-Resume` tool.
 
 ## Application Status Values
 
@@ -403,6 +417,8 @@ The endpoint implements JSON-RPC 2.0 over HTTP (Streamable HTTP transport). All 
 | `getDriveStatus` | Google Drive connection status and configured base resumes |
 | `listBaseResumes` | List available base resume templates |
 | `copyResumeToApplication` | Copy a base resume into the application's Drive folder |
+| `List-Base-Information` | List the candidate's base information documents (authoritative source of truth) |
+| `Get-Base-Information-Content` | Extract the plain-text content of a base information document |
 
 > Calling any Google Drive tool without `ROLE_BETA` returns 403 — the same restriction enforced on the REST controller.
 

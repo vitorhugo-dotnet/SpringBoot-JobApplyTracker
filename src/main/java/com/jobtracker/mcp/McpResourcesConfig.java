@@ -18,4 +18,6 @@ public class McpResourcesConfig {
     public static final String URI_APPLICATION_STATUSES = "resource://job-apply-tracker/application-statuses";
     public static final String URI_BASE_RESUME_CONTENT = "resource://job-apply-tracker/base-resume/{resumeId}";
     public static final String URI_GENERATED_RESUME_CONTENT = "resource://job-apply-tracker/generated-resume/{applicationId}";
+    public static final String URI_BASE_INFORMATION = "resource://job-apply-tracker/base-information";
+    public static final String URI_BASE_INFORMATION_CONTENT = "resource://job-apply-tracker/base-information/{infoId}";
 }

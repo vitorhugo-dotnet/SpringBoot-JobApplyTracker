@@ -5,6 +5,7 @@ import com.jobtracker.dto.auth.UserResponse;
 import com.jobtracker.entity.User;
 import com.jobtracker.mapper.AuthMapper;
 import com.jobtracker.mcp.resources.McpReadOnlySnapshotResources;
+import com.jobtracker.service.BaseInformationService;
 import com.jobtracker.service.DashboardService;
 import com.jobtracker.service.GamificationService;
 import com.jobtracker.service.GoogleDriveService;
@@ -38,6 +39,9 @@ class McpProfileToolsTest {
     @Mock
     private GoogleDriveService googleDriveService;
 
+    @Mock
+    private BaseInformationService baseInformationService;
+
     private ObjectMapper objectMapper;
     private McpReadOnlySnapshotResources resources;
 
@@ -48,6 +52,7 @@ class McpProfileToolsTest {
                 dashboardService,
                 gamificationService,
                 googleDriveService,
+                baseInformationService,
                 authMapper,
                 securityUtils,
                 objectMapper);

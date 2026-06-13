@@ -10,6 +10,7 @@ import com.jobtracker.exception.ResourceNotFoundException;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.GoogleDriveBaseResumeRepository;
 import com.jobtracker.repository.GoogleDriveConnectionRepository;
+import com.jobtracker.util.GoogleDriveFileIds;
 import com.jobtracker.util.SecurityUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -21,14 +22,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class GoogleDriveService {
-
-    private static final Pattern GOOGLE_DRIVE_PATH_ID_PATTERN = Pattern.compile("/(?:d|folders)/([a-zA-Z0-9_-]{10,})");
-    private static final Pattern GOOGLE_DRIVE_QUERY_ID_PATTERN = Pattern.compile("[?&]id=([a-zA-Z0-9_-]{10,})");
 
     private final GoogleDriveApiClient googleDriveApiClient;
     private final GoogleDriveProperties googleDriveProperties;
@@ -68,7 +64,7 @@ public class GoogleDriveService {
     @Transactional
     public GoogleDriveStatusResponse updateRootFolder(GoogleDriveRootFolderRequest request) {
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
-        String folderId = extractGoogleFileId(request.folderIdOrUrl());
+        String folderId = GoogleDriveFileIds.extract(request.folderIdOrUrl());
 
         GoogleDriveApiClient.DriveFileMetadata folder = googleDriveApiClient.getFileMetadata(connection.getAccessToken(), folderId);
         if (!GoogleDriveApiClient.GOOGLE_FOLDER_MIME_TYPE.equals(folder.mimeType())) {
@@ -84,7 +80,7 @@ public class GoogleDriveService {
     @Transactional
     public GoogleDriveBaseResumeResponse addBaseResume(GoogleDriveBaseResumeRequest request) {
         GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
-        String documentId = extractGoogleFileId(request.documentIdOrUrl());
+        String documentId = GoogleDriveFileIds.extract(request.documentIdOrUrl());
 
         GoogleDriveApiClient.DriveFileMetadata file = googleDriveApiClient.getFileMetadata(connection.getAccessToken(), documentId);
         if (!GoogleDriveApiClient.GOOGLE_DOC_MIME_TYPE.equals(file.mimeType()) &&
@@ -303,28 +299,6 @@ public class GoogleDriveService {
         if (!googleDriveProperties.isConfigured()) {
             throw new BadRequestException("Google Drive integration is not configured on the server");
         }
-    }
-
-    private String extractGoogleFileId(String rawValue) {
-        if (!StringUtils.hasText(rawValue)) {
-            throw new BadRequestException("Google file or folder ID is required");
-        }
-
-        String trimmed = rawValue.trim();
-        if (!trimmed.contains("/")) {
-            return trimmed;
-        }
-
-        Matcher pathMatcher = GOOGLE_DRIVE_PATH_ID_PATTERN.matcher(trimmed);
-        if (pathMatcher.find()) {
-            return pathMatcher.group(1);
-        }
-
-        Matcher queryMatcher = GOOGLE_DRIVE_QUERY_ID_PATTERN.matcher(trimmed);
-        if (queryMatcher.find()) {
-            return queryMatcher.group(1);
-        }
-        throw new BadRequestException("Could not extract a Google file or folder ID from the provided value");
     }
 
     private String buildVacancyFolderName(JobApplication application) {
