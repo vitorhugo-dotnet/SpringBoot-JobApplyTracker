@@ -18,6 +18,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springaicommunity.mcp.context.McpSyncRequestContext;
 
+import java.lang.reflect.Method;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,12 +31,14 @@ import static org.mockito.Mockito.when;
  * Unit tests for {@link McpAuditAspect}. The aspect is exercised directly (not via an AOP proxy)
  * with a real {@link McpAuditService} backed by a {@link SimpleMeterRegistry}, so the assertions
  * verify the end-to-end behavior: result passthrough, exception rethrow, and the emitted meters.
+ *
+ * <p>The advice reads {@link AuditMcpOperation} from the join-point method via reflection, so the
+ * mocked {@link MethodSignature} returns real annotated methods from {@link Sample}.
  */
 class McpAuditAspectTest {
 
     private MeterRegistry meterRegistry;
     private McpAuditAspect aspect;
-    private Span span;
 
     @BeforeEach
     void setUp() {
@@ -46,7 +50,7 @@ class McpAuditAspectTest {
 
         // Tracer is a no-op stub: every fluent call returns the same span.
         Tracer tracer = mock(Tracer.class);
-        span = mock(Span.class);
+        Span span = mock(Span.class);
         when(tracer.nextSpan()).thenReturn(span);
         when(span.name(anyString())).thenReturn(span);
         when(span.start()).thenReturn(span);
@@ -59,11 +63,11 @@ class McpAuditAspectTest {
 
     @Test
     void successfulExecution_returnsResultAndRecordsSuccessMeter() throws Throwable {
-        ProceedingJoinPoint jp = joinPoint("createApplication",
+        ProceedingJoinPoint jp = joinPoint(method("createApplication", McpSyncRequestContext.class, String.class),
                 new String[] {"ctx", "vacancyName"}, new Object[] {null, "Backend Engineer"});
         when(jp.proceed()).thenReturn("RESULT");
 
-        Object result = aspect.audit(jp, annotation("Create-Application", ""));
+        Object result = aspect.audit(jp);
 
         assertThat(result).isEqualTo("RESULT");
         assertThat(invocationCount("Create-Application", "SUCCESS")).isEqualTo(1.0);
@@ -71,11 +75,11 @@ class McpAuditAspectTest {
 
     @Test
     void exception_recordsErrorMeterAndRethrows() throws Throwable {
-        ProceedingJoinPoint jp = joinPoint("deleteApplication",
+        ProceedingJoinPoint jp = joinPoint(method("deleteApplication", McpSyncRequestContext.class, String.class),
                 new String[] {"ctx", "id"}, new Object[] {null, "abc"});
         when(jp.proceed()).thenThrow(new IllegalStateException("boom"));
 
-        assertThatThrownBy(() -> aspect.audit(jp, annotation("Delete-Application", "")))
+        assertThatThrownBy(() -> aspect.audit(jp))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("boom");
 
@@ -84,11 +88,11 @@ class McpAuditAspectTest {
 
     @Test
     void providerResolvedFromAnnotationAttribute() throws Throwable {
-        ProceedingJoinPoint jp = joinPoint("getAnalytics",
+        ProceedingJoinPoint jp = joinPoint(method("getAnalytics", McpSyncRequestContext.class),
                 new String[] {"ctx"}, new Object[] {null});
         when(jp.proceed()).thenReturn("ok");
 
-        aspect.audit(jp, annotation("Get-Analytics", "CHATGPT"));
+        aspect.audit(jp);
 
         assertThat(meterRegistry.get("mcp.tool.invocations")
                 .tag("action", "Get-Analytics")
@@ -101,11 +105,11 @@ class McpAuditAspectTest {
         McpSyncRequestContext ctx = mock(McpSyncRequestContext.class);
         when(ctx.clientInfo()).thenReturn(new McpSchema.Implementation("claude-code", "Claude Code", "2.1.177"));
 
-        ProceedingJoinPoint jp = joinPoint("listStatuses",
+        ProceedingJoinPoint jp = joinPoint(method("listStatuses", McpSyncRequestContext.class),
                 new String[] {"ctx"}, new Object[] {ctx});
         when(jp.proceed()).thenReturn("ok");
 
-        aspect.audit(jp, annotation("List-Statuses", ""));
+        aspect.audit(jp);
 
         assertThat(meterRegistry.get("mcp.tool.invocations")
                 .tag("action", "List-Statuses")
@@ -118,11 +122,11 @@ class McpAuditAspectTest {
         McpSyncServerExchange exchange = mock(McpSyncServerExchange.class);
         when(exchange.getClientInfo()).thenReturn(new McpSchema.Implementation("chatgpt", "ChatGPT", "1.0"));
 
-        ProceedingJoinPoint jp = joinPoint("pipelineSummary",
+        ProceedingJoinPoint jp = joinPoint(method("pipelineSummary", McpSyncServerExchange.class),
                 new String[] {"exchange"}, new Object[] {exchange});
         when(jp.proceed()).thenReturn("{}");
 
-        aspect.audit(jp, annotation("Pipeline Summary", ""));
+        aspect.audit(jp);
 
         assertThat(meterRegistry.get("mcp.tool.invocations")
                 .tag("action", "Pipeline Summary")
@@ -139,20 +143,51 @@ class McpAuditAspectTest {
                 .counter().count();
     }
 
-    private static ProceedingJoinPoint joinPoint(String method, String[] paramNames, Object[] args) {
+    private static ProceedingJoinPoint joinPoint(Method method, String[] paramNames, Object[] args) {
         ProceedingJoinPoint jp = mock(ProceedingJoinPoint.class);
         MethodSignature signature = mock(MethodSignature.class);
         when(jp.getSignature()).thenReturn(signature);
-        when(signature.getName()).thenReturn(method);
+        when(signature.getMethod()).thenReturn(method);
+        when(signature.getName()).thenReturn(method.getName());
         when(signature.getParameterNames()).thenReturn(paramNames);
         when(jp.getArgs()).thenReturn(args);
         return jp;
     }
 
-    private static AuditMcpOperation annotation(String action, String provider) {
-        AuditMcpOperation ann = mock(AuditMcpOperation.class);
-        when(ann.action()).thenReturn(action);
-        when(ann.provider()).thenReturn(provider);
-        return ann;
+    private static Method method(String name, Class<?>... paramTypes) {
+        try {
+            return Sample.class.getMethod(name, paramTypes);
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** Carrier of @AuditMcpOperation-annotated methods mirroring real tool/resource signatures. */
+    @SuppressWarnings("unused")
+    static class Sample {
+        @AuditMcpOperation(action = "Create-Application")
+        public Object createApplication(McpSyncRequestContext ctx, String vacancyName) {
+            return null;
+        }
+
+        @AuditMcpOperation(action = "Delete-Application")
+        public Object deleteApplication(McpSyncRequestContext ctx, String id) {
+            return null;
+        }
+
+        @AuditMcpOperation(action = "Get-Analytics", provider = "CHATGPT")
+        public Object getAnalytics(McpSyncRequestContext ctx) {
+            return null;
+        }
+
+        @AuditMcpOperation(action = "List-Statuses")
+        public Object listStatuses(McpSyncRequestContext ctx) {
+            return null;
+        }
+
+        @AuditMcpOperation(action = "Pipeline Summary")
+        public Object pipelineSummary(McpSyncServerExchange exchange) {
+            return null;
+        }
     }
 }

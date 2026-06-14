@@ -42,9 +42,14 @@ public class McpAuditAspect {
         this.tracer = tracer;
     }
 
-    @Around("@annotation(auditMcpOperation)")
-    public Object audit(ProceedingJoinPoint joinPoint, AuditMcpOperation auditMcpOperation) throws Throwable {
+    // Non-binding, type-based pointcut: the advice takes only ProceedingJoinPoint and reads the
+    // annotation off the method via reflection. Binding the annotation as an advice argument
+    // (@annotation(x)) needs a runtime JoinPointMatch that is not recoverable when the MCP
+    // framework invokes the proxied method, which fails with "JoinPointMatch was NOT bound".
+    @Around("@annotation(com.jobtracker.mcp.audit.AuditMcpOperation)")
+    public Object audit(ProceedingJoinPoint joinPoint) throws Throwable {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        AuditMcpOperation auditMcpOperation = signature.getMethod().getAnnotation(AuditMcpOperation.class);
         String action = auditMcpOperation.action();
         String methodName = signature.getName();
 
