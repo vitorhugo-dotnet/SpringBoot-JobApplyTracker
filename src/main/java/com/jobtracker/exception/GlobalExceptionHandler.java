@@ -10,6 +10,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -98,6 +99,15 @@ public class GlobalExceptionHandler {
         body.put("error", "method_not_allowed");
         body.put("message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(body);
+    }
+
+    // Map an unparseable/malformed request body to 400 (not 500). Without this, the
+    // generic Exception handler below catches HttpMessageNotReadableException (e.g. a
+    // date that doesn't match the expected yyyy-MM-dd format) and returns 500.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("event=MALFORMED_REQUEST_BODY message={}", ex.getMessage());
+        return buildResponse(HttpStatus.BAD_REQUEST, "Malformed or unreadable request body");
     }
 
     @ExceptionHandler(Exception.class)
