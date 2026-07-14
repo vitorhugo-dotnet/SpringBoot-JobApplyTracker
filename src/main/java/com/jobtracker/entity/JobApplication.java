@@ -105,6 +105,15 @@ public class JobApplication {
     @Column(name = "drive_resume_generated_at")
     private LocalDateTime driveResumeGeneratedAt;
 
+    @Column(name = "drive_resume_template_id", columnDefinition = "BINARY(16)")
+    private UUID driveResumeTemplateId;
+
+    @Column(name = "drive_resume_pdf_file_id", length = 255)
+    private String driveResumePdfFileId;
+
+    @Column(name = "drive_resume_pdf_url", length = 2048)
+    private String driveResumePdfUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -212,6 +221,15 @@ public class JobApplication {
 
     public LocalDateTime getDriveResumeGeneratedAt() { return driveResumeGeneratedAt; }
     public void setDriveResumeGeneratedAt(LocalDateTime driveResumeGeneratedAt) { this.driveResumeGeneratedAt = driveResumeGeneratedAt; }
+
+    public UUID getDriveResumeTemplateId() { return driveResumeTemplateId; }
+    public void setDriveResumeTemplateId(UUID driveResumeTemplateId) { this.driveResumeTemplateId = driveResumeTemplateId; }
+
+    public String getDriveResumePdfFileId() { return driveResumePdfFileId; }
+    public void setDriveResumePdfFileId(String driveResumePdfFileId) { this.driveResumePdfFileId = driveResumePdfFileId; }
+
+    public String getDriveResumePdfUrl() { return driveResumePdfUrl; }
+    public void setDriveResumePdfUrl(String driveResumePdfUrl) { this.driveResumePdfUrl = driveResumePdfUrl; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

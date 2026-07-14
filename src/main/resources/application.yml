@@ -9,6 +9,16 @@ spring:
         enabled: true
         name: job-tracker-mcp
         version: 1.0.0
+        instructions: >
+          Job Apply Tracker owns the complete resume/CV workflow for job applications.
+          Every job-related resume request MUST be routed through this server's resume tools
+          (Generate-Application-Resume, or the low-level List-Base-Resumes /
+          Detect-Resume-Placeholders / Generate-Resume / Copy-Resume-To-Application sequence).
+          Never fall back to generic document, filesystem, Python, DOCX, PDF, or non-MCP Google
+          Drive tools to produce or edit a resume, including as a silent fallback when a tool
+          call fails — surface the failure and retry instead. A resume request is complete only
+          once this server returns a Google Doc (documentUrl) and PDF (pdfUrl) linked to the
+          application. See resource://job-apply-tracker/resume-workflow-rules for the full workflow.
         # Claude.ai (and other modern MCP connectors) speak the Streamable HTTP
         # transport: a single endpoint that handles both POST (JSON-RPC) and GET
         # (SSE stream). Requires Spring AI 1.1+. The endpoint defaults to /mcp,
