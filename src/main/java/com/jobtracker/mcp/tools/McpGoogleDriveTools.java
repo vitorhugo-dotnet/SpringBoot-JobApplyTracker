@@ -85,7 +85,12 @@ public class McpGoogleDriveTools {
                     Use List-Base-Resumes to obtain a valid baseResumeId before calling this tool. \
                     The baseResumeId is a Job Apply Tracker UUID — it is NOT a Google Drive file ID. \
                     The application folder is created automatically inside the configured Drive root folder \
-                    if it does not yet exist.""",
+                    if it does not yet exist.
+
+                    This is a low-level, advanced-use tool. For the normal "generate a tailored resume for \
+                    this application" request, call Generate-Application-Resume instead — it copies, fills \
+                    placeholders, and exports the PDF in one atomic call. Do NOT fall back to local DOCX/PDF \
+                    generation, filesystem, or non-MCP tools for job-related resumes.""",
             annotations = @McpAnnotations(
                     title = "Copy Resume To Application",
                     readOnlyHint = false,
@@ -133,6 +138,11 @@ public class McpGoogleDriveTools {
                     placeholders with the supplied values, export a PDF, and return links to both \
                     the Google Doc and the PDF.
 
+                    This is a low-level, advanced-use tool for callers that already ran List-Base-Resumes and \
+                    Detect-Resume-Placeholders themselves (e.g. to inspect placeholders before submitting values). \
+                    For the normal case, call Generate-Application-Resume instead — it selects the template, \
+                    detects and validates placeholders, and generates the resume in a single atomic call.
+
                     Prerequisites (call in order before this tool):
                     1. List-Base-Information + Get-Base-Information-Content — you MUST read the candidate's base \
                        information first. It is the authoritative source of truth about the candidate; never generate \
@@ -142,7 +152,8 @@ public class McpGoogleDriveTools {
                     4. Provide a value for every detected placeholder key (keys without braces, \
                        e.g. "RESUMO", "STACK", "PROJETO_1").
 
-                    Do NOT call this tool before Create-Application — you need the applicationId first.""",
+                    Do NOT call this tool before Create-Application — you need the applicationId first. \
+                    Local DOCX/PDF/filesystem generation is never a valid substitute for this workflow.""",
             annotations = @McpAnnotations(
                     title = "Generate Resume",
                     readOnlyHint = false,
@@ -159,6 +170,63 @@ public class McpGoogleDriveTools {
         return resumeGenerationService.generateTemplateResume(
                 UUID.fromString(applicationId),
                 new ResumePlaceholderRequest(UUID.fromString(baseResumeId), values));
+    }
+
+    @McpTool(
+            name = "Generate-Application-Resume",
+            title = "Generate Application Resume",
+            description = """
+                    MANDATORY entry point for "generate/tailor a resume for this application" requests. \
+                    Runs the full resume workflow atomically on the backend: selects the base resume template, \
+                    detects placeholders, validates every placeholder has a value, copies the template, replaces \
+                    placeholders, exports the PDF, and links both to the application — in one call.
+
+                    You MUST use this tool (or the low-level Copy-Resume-To-Application / \
+                    Detect-Resume-Placeholders / Generate-Resume sequence) for every job-related CV/resume request. \
+                    Never fall back to generic document, filesystem, Python, DOCX, PDF, or non-MCP Google Drive \
+                    tools to produce a resume — a request is not complete unless it returns a Google Doc \
+                    (documentUrl) and PDF (pdfUrl) linked to the application via this MCP server.
+
+                    Prerequisites before calling this tool:
+                    1. Create-Application — the application must already exist.
+                    2. List-Base-Information + Get-Base-Information-Content — read the candidate's base information \
+                       first; it is the authoritative source of truth. Never invent experience, skills, or projects.
+
+                    Template selection: pass baseResumeId (from List-Base-Resumes) to use a specific template, \
+                    or pass language (e.g. "PT", "EN") to let the backend pick the single matching reusable \
+                    template automatically. If zero or more than one template matches the language, the call \
+                    fails with a clear error asking you to pass baseResumeId explicitly — it never guesses.
+
+                    Placeholder values: supply a value for every placeholder in the template (keys without \
+                    braces). The call fails with a clear error listing any missing placeholder instead of \
+                    generating an incomplete resume. Read-only PDF resumes and mismatched applications also \
+                    fail with clear errors.
+
+                    Calling this tool again for the same application regenerates the resume: a new Google Doc \
+                    and PDF are created in the application's Drive folder and become the new linked resume; \
+                    the previous files remain in Drive but are no longer referenced by the application.
+
+                    On success the response always includes documentUrl, pdfUrl, baseResumeId (the template \
+                    used), and workflowCompleted: true.""",
+            annotations = @McpAnnotations(
+                    title = "Generate Application Resume",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = false,
+                    openWorldHint = true))
+    @AuditMcpOperation(action = "Generate-Application-Resume")
+    public ResumePlaceholderResponse generateApplicationResume(
+            McpSyncRequestContext ctx,
+            @McpToolParam(required = true, description = "UUID of the job application — must already exist (from Create-Application)") String applicationId,
+            @McpToolParam(required = false, description = "UUID of the base resume template — obtain from List-Base-Resumes, NOT a Google Drive file ID. Omit to select automatically by language.") String baseResumeId,
+            @McpToolParam(required = false, description = "Vacancy language code (e.g. \"PT\", \"EN\") used to auto-select the template when baseResumeId is omitted. Ignored if baseResumeId is provided.") String language,
+            @McpToolParam(required = true, description = "Placeholder values keyed by the exact names returned by Detect-Resume-Placeholders (without braces), e.g. {\"RESUMO\":\"...\", \"STACK\":\"Java, Spring Boot\"}. Every detected placeholder must have a value.")
+            Map<String, String> values) {
+        return resumeGenerationService.generateApplicationResume(
+                UUID.fromString(applicationId),
+                baseResumeId == null ? null : UUID.fromString(baseResumeId),
+                language,
+                values);
     }
 
     @McpTool(

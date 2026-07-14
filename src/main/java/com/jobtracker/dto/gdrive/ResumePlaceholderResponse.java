@@ -45,6 +45,9 @@ public record ResumePlaceholderResponse(
         List<String> placeholders,
 
         @Schema(description = "Timestamp when the resume was generated", example = "2024-06-01T12:34:56")
-        LocalDateTime generatedAt
+        LocalDateTime generatedAt,
+
+        @Schema(description = "True once the document and PDF have both been generated and linked to the application", example = "true")
+        boolean workflowCompleted
 ) {
 }

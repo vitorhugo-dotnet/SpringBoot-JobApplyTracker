@@ -167,11 +167,15 @@ public class ResumeGenerationService {
                 pdfName
         );
         LocalDateTime generatedAt = LocalDateTime.now();
+        String pdfUrl = resolveDocumentLink(pdfFile);
 
         application.setDriveResumeFileId(copiedFile.id());
         application.setDriveResumeFileName(copiedFile.name());
         application.setDriveResumeDocumentUrl(copiedDocumentUrl);
         application.setDriveResumeGeneratedAt(generatedAt);
+        application.setDriveResumeTemplateId(baseResume.getId());
+        application.setDriveResumePdfFileId(pdfFile.id());
+        application.setDriveResumePdfUrl(pdfUrl);
 
         connectionRepository.save(connection);
         applicationRepository.save(application);
@@ -182,11 +186,62 @@ public class ResumeGenerationService {
                 copiedFile.id(),
                 pdfFile.id(),
                 copiedDocumentUrl,
-                resolveDocumentLink(pdfFile),
+                pdfUrl,
                 values,
                 remainingPlaceholders,
-                generatedAt
+                generatedAt,
+                true
         );
+    }
+
+    /**
+     * Atomic, agent-proof entry point for issue #61: resolves the template, validates every
+     * detected placeholder has a value, and generates the resume in a single call so the
+     * List-Base-Resumes / Detect-Resume-Placeholders / Generate-Resume sequence cannot be
+     * silently skipped or replaced by local file generation.
+     */
+    @Transactional
+    public ResumePlaceholderResponse generateApplicationResume(UUID applicationId, UUID explicitBaseResumeId, String language, Map<String, String> values) {
+        UUID userId = securityUtils.getCurrentUserId();
+        applicationRepository.findByIdAndUserId(applicationId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
+
+        UUID baseResumeId = explicitBaseResumeId != null ? explicitBaseResumeId : selectBaseResumeIdByLanguage(userId, language);
+
+        List<String> placeholders = detectPlaceholders(baseResumeId).placeholders();
+        Map<String, String> safeValues = values == null ? Map.of() : values;
+        validateAllPlaceholdersProvided(placeholders, safeValues);
+
+        return generateTemplateResume(applicationId, new ResumePlaceholderRequest(baseResumeId, safeValues));
+    }
+
+    private UUID selectBaseResumeIdByLanguage(UUID userId, String language) {
+        if (!StringUtils.hasText(language)) {
+            throw new BadRequestException("Provide either baseResumeId or language to select a resume template");
+        }
+
+        List<GoogleDriveBaseResume> candidates = baseResumeRepository.findAllByConnectionUserIdOrderByCreatedAtAsc(userId).stream()
+                .filter(GoogleDriveBaseResume::isTemplate)
+                .filter(resume -> !resume.isReadOnly())
+                .filter(resume -> language.equalsIgnoreCase(resume.getLanguage()))
+                .toList();
+
+        if (candidates.isEmpty()) {
+            throw new BadRequestException("No reusable template found for language '" + language + "'. Use List-Base-Resumes and pass baseResumeId explicitly.");
+        }
+        if (candidates.size() > 1) {
+            throw new BadRequestException("Multiple templates found for language '" + language + "'. Pass baseResumeId explicitly to disambiguate.");
+        }
+        return candidates.get(0).getId();
+    }
+
+    private void validateAllPlaceholdersProvided(List<String> placeholders, Map<String, String> values) {
+        List<String> missing = placeholders.stream()
+                .filter(placeholder -> !StringUtils.hasText(values.get(placeholder)))
+                .toList();
+        if (!missing.isEmpty()) {
+            throw new BadRequestException("Missing values for placeholders: " + String.join(", ", missing));
+        }
     }
 
     public List<String> detectPlaceholders(String text) {
