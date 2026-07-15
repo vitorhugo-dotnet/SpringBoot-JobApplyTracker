@@ -45,17 +45,29 @@ public class McpPromptsConfig {
                 %s
                 === END VACANCY ===
 
+                MANDATORY REGISTRATION WORKFLOW (applies to this and every other application-related
+                request — generating/adapting a resume, drafting an email/WhatsApp/LinkedIn message,
+                contacting a recruiter, evaluating job fit, or preparing application materials):
+                List-Statuses → Search by exact vacancy URL → Create-Application when absent → Continue requested workflow
+
                 Follow this order exactly:
 
                 STEP 1 - Analyze the vacancy
                 Extract: vacancyName (title), organization (company), vacancyLink (URL if present),
                 required stack, seniority, vacancy language, recruiter name/email if present.
-               
-                STEP 2 - Check for existing application
-                Call List-Applications with the extracted vacancyName, organization, recruiter name/email to check for an existing application.
-                If an application with the same vacancyName and organization exists,
-                return a message indicating that an application already exists and provide its UUID. Do not proceed with the workflow if a duplicate application is
-                found. If no duplicate application exists, proceed to the next step.
+
+                STEP 2 - Check for existing application (mandatory, do not skip)
+                Call List-Statuses to get the valid status values. Then call List-Applications/Search-Applications
+                and search for an existing application using the exact vacancy URL (vacancyLink).
+                Similar vacancy names, recruiters, organizations, salaries, or technology stacks are NOT sufficient
+                evidence of a duplicate. Treat the vacancy as a duplicate only when the vacancyLink is identical to
+                an existing application, or when I explicitly confirm it is the same vacancy.
+                If an exact-URL duplicate exists, return a message indicating that an application already exists
+                and provide its UUID. Do not proceed with the workflow if a duplicate application is found.
+                If the exact URL is not registered (including reposts of an otherwise similar vacancy under a new
+                URL), you MUST call Create-Application before performing the requested resume, message,
+                evaluation, or outreach action — never silently skip vacancy registration. This applies whether
+                the requested action is generating a resume, message, evaluation, or outreach.
 
                 STEP 3 - Read my BASE INFORMATION (TOP PRIORITY, mandatory before generating any content)
                 - Call List-Base-Information and read EVERY document via Get-Base-Information-Content

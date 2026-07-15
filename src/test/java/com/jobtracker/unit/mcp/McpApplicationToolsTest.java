@@ -15,7 +15,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springaicommunity.mcp.annotation.McpTool;
 
+import java.lang.reflect.Method;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -107,6 +109,25 @@ class McpApplicationToolsTest {
         List<ApplicationResponse> result = tools.getOverdueApplications(null);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void createApplicationTool_descriptionMandatesAutomaticRegistration() {
+        Method method = java.util.Arrays.stream(McpApplicationTools.class.getDeclaredMethods())
+                .filter(m -> m.getName().equals("createApplication"))
+                .findFirst()
+                .orElseThrow();
+
+        String description = method.getAnnotation(McpTool.class).description();
+
+        assertThat(description)
+                .contains("must be called automatically")
+                .contains("applying")
+                .contains("generating a resume")
+                .contains("contacting a recruiter")
+                .contains("evaluating job fit")
+                .contains("preparing application materials")
+                .contains("unless the exact vacancy URL is already registered");
     }
 
     @Test
