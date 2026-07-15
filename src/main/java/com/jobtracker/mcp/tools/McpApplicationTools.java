@@ -135,7 +135,9 @@ public class McpApplicationTools {
     @McpTool(
             name = "Create-Application",
             title = "Create Application",
-            description = "Create a new job application record. IMPORTANT: Call List-Statuses first to get valid status values. Never use a status value from memory.",
+            description = "Create a new job application record. IMPORTANT: Call List-Statuses first to get valid status values. Never use a status value from memory. "
+                    + "This tool must be called automatically whenever the user provides a vacancy in the context of applying, generating a resume, "
+                    + "contacting a recruiter, evaluating job fit, or preparing application materials, unless the exact vacancy URL is already registered.",
             annotations = @McpAnnotations(
                     title = "Create Application",
                     readOnlyHint = false,

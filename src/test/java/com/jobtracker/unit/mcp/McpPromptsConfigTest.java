@@ -1,6 +1,8 @@
 package com.jobtracker.unit.mcp;
 
 import com.jobtracker.mcp.McpPromptsConfig;
+import io.modelcontextprotocol.spec.McpSchema.GetPromptResult;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import org.junit.jupiter.api.Test;
 import org.springaicommunity.mcp.annotation.McpComplete;
 import org.springaicommunity.mcp.annotation.McpPrompt;
@@ -11,6 +13,22 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class McpPromptsConfigTest {
+
+    private final McpPromptsConfig prompts = new McpPromptsConfig();
+
+    @Test
+    void intakeVacancyPrompt_enforcesMandatoryUrlBasedRegistrationWorkflow() {
+        GetPromptResult result = prompts.intakeVacancyPrompt("Senior Java Backend - Julia Argueiro - https://example.com/vaga/123");
+
+        String text = ((TextContent) result.messages().get(0).content()).text();
+
+        assertThat(text)
+                .contains("List-Statuses → Search by exact vacancy URL → Create-Application when absent → Continue requested workflow")
+                .contains("Call List-Statuses")
+                .contains("exact vacancy URL")
+                .contains("Similar vacancy names, recruiters, organizations, salaries, or technology stacks are NOT sufficient")
+                .contains("resume, message, evaluation, or outreach");
+    }
 
     @Test
     void everyPromptHasAMatchingCompletionHandler() {
