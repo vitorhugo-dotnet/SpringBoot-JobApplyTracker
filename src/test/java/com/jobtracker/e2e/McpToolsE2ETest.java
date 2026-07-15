@@ -169,6 +169,13 @@ class McpToolsE2ETest extends AbstractE2ETest {
                 .then().statusCode(200).extract().response();
 
         JsonPath body = mcpJsonRpcBody(response);
+        assertThat(body.<Object>get("error"))
+                .as("List-Base-Information must not fail at the JSON-RPC layer for a BETA user: %s",
+                        response.asString())
+                .isNull();
+        assertThat(body.<Object>get("result"))
+                .as("List-Base-Information must return a result for a BETA user: %s", response.asString())
+                .isNotNull();
         Boolean isError = body.getObject("result.isError", Boolean.class);
         assertThat(isError)
                 .as("List-Base-Information must be callable end-to-end for a BETA user without error: %s",
