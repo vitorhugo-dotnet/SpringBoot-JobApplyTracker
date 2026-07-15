@@ -271,6 +271,34 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void getAll_filtersByExactVacancyLink_forDuplicateDetection() throws Exception {
+        ApplicationRequest original = new ApplicationRequest(
+                "Senior Java Backend", "Julia Argueiro", "Acme",
+                "https://example.com/vaga/123", LocalDate.now(),
+                false, false, null, "RH", false, null, null, null);
+        ApplicationRequest repost = new ApplicationRequest(
+                "Senior Java Backend", "Julia Argueiro", "Acme",
+                "https://example.com/vaga/123-repost", LocalDate.now(),
+                false, false, null, "RH", false, null, null, null);
+
+        mockMvc.perform(post("/api/v1/applications")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(original)));
+        mockMvc.perform(post("/api/v1/applications")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(repost)));
+
+        mockMvc.perform(get("/api/v1/applications")
+                        .param("vacancyLink", "https://example.com/vaga/123")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.applications[0].vacancyLink").value("https://example.com/vaga/123"));
+    }
+
+    @Test
     void updateReminder_shouldReturn200() throws Exception {
         ApplicationRequest create = buildRequest("Reminder Test");
         MvcResult createResult = mockMvc.perform(post("/api/v1/applications")

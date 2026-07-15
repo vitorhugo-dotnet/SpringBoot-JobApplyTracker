@@ -49,6 +49,8 @@ public class McpPromptsConfig {
                 request — generating/adapting a resume, drafting an email/WhatsApp/LinkedIn message,
                 contacting a recruiter, evaluating job fit, or preparing application materials):
                 List-Statuses → Search by exact vacancy URL → Create-Application when absent → Continue requested workflow
+                For THIS intake workflow, Create-Application is called exactly once, at STEP 9 — STEP 2 only
+                checks for a duplicate, it never calls Create-Application itself.
 
                 Follow this order exactly:
 
@@ -57,17 +59,21 @@ public class McpPromptsConfig {
                 required stack, seniority, vacancy language, recruiter name/email if present.
 
                 STEP 2 - Check for existing application (mandatory, do not skip)
-                Call List-Statuses to get the valid status values. Then call List-Applications/Search-Applications
-                and search for an existing application using the exact vacancy URL (vacancyLink).
+                Call List-Statuses to get the valid status values. Then, if vacancyLink was extracted in STEP 1,
+                call List-Applications with vacancyLink=<the extracted vacancyLink> to search for an existing
+                application with that exact URL — Search-Applications does NOT match on vacancyLink (it only
+                covers vacancyName/organization/recruiterName/note), so it must not be used for this check.
+                If vacancyLink could not be extracted, ask me for it before proceeding, since URL-based dedupe
+                is mandatory and cannot be skipped.
                 Similar vacancy names, recruiters, organizations, salaries, or technology stacks are NOT sufficient
                 evidence of a duplicate. Treat the vacancy as a duplicate only when the vacancyLink is identical to
                 an existing application, or when I explicitly confirm it is the same vacancy.
                 If an exact-URL duplicate exists, return a message indicating that an application already exists
                 and provide its UUID. Do not proceed with the workflow if a duplicate application is found.
                 If the exact URL is not registered (including reposts of an otherwise similar vacancy under a new
-                URL), you MUST call Create-Application before performing the requested resume, message,
-                evaluation, or outreach action — never silently skip vacancy registration. This applies whether
-                the requested action is generating a resume, message, evaluation, or outreach.
+                URL), do NOT call Create-Application here — proceed to STEP 3 and register it later, exactly once,
+                at STEP 9, before the resume, message, evaluation, or outreach action is delivered. Never silently
+                skip vacancy registration, and never call Create-Application more than once for the same vacancy.
 
                 STEP 3 - Read my BASE INFORMATION (TOP PRIORITY, mandatory before generating any content)
                 - Call List-Base-Information and read EVERY document via Get-Base-Information-Content
@@ -100,8 +106,9 @@ public class McpPromptsConfig {
                 Cross-check my base information (step 3) and real CV (step 4) with the vacancy requirements (step 1).
                 ATS-friendly, without inventing anything. Follow resume-workflow-rules for completeness and key formatting.
 
-                STEP 9 - Create the application
+                STEP 9 - Create the application (the single, mandatory Create-Application call for this workflow)
                 Follow application-creation-rules. Call Create-Application with the extracted data.
+                This is the only Create-Application call in this workflow — STEP 2 must not have called it already.
                 Do NOT fill nextStepDateTime.
                 Note: ATS-focused summary (stack, seniority, fit, gaps).
 

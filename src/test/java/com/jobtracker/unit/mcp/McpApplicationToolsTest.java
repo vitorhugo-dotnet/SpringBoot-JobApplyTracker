@@ -50,7 +50,7 @@ class McpApplicationToolsTest {
         when(applicationService.getAll(any(ApplicationFilter.class), eq(0), eq(20), eq("createdAt,desc")))
                 .thenReturn(expected);
 
-        ApplicationPageResponse result = tools.listApplications(null, null, null, null, null, null, null, null, null, null);
+        ApplicationPageResponse result = tools.listApplications(null, null, null, null, null, null, null, null, null, null, null);
 
         assertThat(result).isEqualTo(expected);
         verify(applicationService).getAll(any(ApplicationFilter.class), eq(0), eq(20), eq("createdAt,desc"));
@@ -62,7 +62,7 @@ class McpApplicationToolsTest {
         when(applicationService.getAll(any(ApplicationFilter.class), eq(0), eq(20), any()))
                 .thenReturn(expected);
 
-        tools.listApplications(null, null, null, "2025-01-01", "2025-06-30", null, null, null, null, null);
+        tools.listApplications(null, null, null, null, "2025-01-01", "2025-06-30", null, null, null, null, null);
 
         ArgumentCaptor<ApplicationFilter> captor = ArgumentCaptor.forClass(ApplicationFilter.class);
         verify(applicationService).getAll(captor.capture(), eq(0), eq(20), eq("createdAt,desc"));
@@ -76,9 +76,22 @@ class McpApplicationToolsTest {
         when(applicationService.getAll(any(ApplicationFilter.class), eq(2), eq(5), eq("applicationDate,asc")))
                 .thenReturn(expected);
 
-        tools.listApplications(null, null, null, null, null, null, null, 2, 5, "applicationDate,asc");
+        tools.listApplications(null, null, null, null, null, null, null, null, 2, 5, "applicationDate,asc");
 
         verify(applicationService).getAll(any(ApplicationFilter.class), eq(2), eq(5), eq("applicationDate,asc"));
+    }
+
+    @Test
+    void listApplications_passesVacancyLinkForExactDuplicateLookup() {
+        ApplicationPageResponse expected = new ApplicationPageResponse(List.of(), 0, 20, 0, 0);
+        when(applicationService.getAll(any(ApplicationFilter.class), eq(0), eq(20), any()))
+                .thenReturn(expected);
+
+        tools.listApplications(null, null, null, "https://example.com/vaga/123", null, null, null, null, null, null, null);
+
+        ArgumentCaptor<ApplicationFilter> captor = ArgumentCaptor.forClass(ApplicationFilter.class);
+        verify(applicationService).getAll(captor.capture(), eq(0), eq(20), eq("createdAt,desc"));
+        assertThat(captor.getValue().vacancyLink()).isEqualTo("https://example.com/vaga/123");
     }
 
     @Test

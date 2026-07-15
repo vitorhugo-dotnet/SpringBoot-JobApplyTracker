@@ -31,6 +31,29 @@ class McpPromptsConfigTest {
     }
 
     @Test
+    void intakeVacancyPrompt_callsCreateApplicationExactlyOnceAtStep9() {
+        GetPromptResult result = prompts.intakeVacancyPrompt("Senior Java Backend - Julia Argueiro - https://example.com/vaga/123");
+
+        String text = ((TextContent) result.messages().get(0).content()).text();
+
+        assertThat(text)
+                .contains("Create-Application is called exactly once, at STEP 9")
+                .contains("do NOT call Create-Application here")
+                .contains("This is the only Create-Application call in this workflow");
+    }
+
+    @Test
+    void intakeVacancyPrompt_usesListApplicationsVacancyLinkForDuplicateCheck() {
+        GetPromptResult result = prompts.intakeVacancyPrompt("Senior Java Backend - Julia Argueiro - https://example.com/vaga/123");
+
+        String text = ((TextContent) result.messages().get(0).content()).text();
+
+        assertThat(text)
+                .contains("call List-Applications with vacancyLink=")
+                .contains("Search-Applications does NOT match on vacancyLink");
+    }
+
+    @Test
     void everyPromptHasAMatchingCompletionHandler() {
         Set<String> promptNames = promptMethods().stream()
                 .map(method -> method.getAnnotation(McpPrompt.class).name())

@@ -290,7 +290,7 @@ class ApplicationServiceTest {
 
     private static ApplicationFilter filterArchived(Boolean archived) {
         return new ApplicationFilter(null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, archived);
+                null, null, null, null, null, null, null, null, null, archived);
     }
 
     @Test

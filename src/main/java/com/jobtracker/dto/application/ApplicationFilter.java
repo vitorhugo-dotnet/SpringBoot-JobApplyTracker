@@ -22,6 +22,8 @@ public record ApplicationFilter(
         String recruiterName,
         @Schema(description = "Organization partial match")
         String organization,
+        @Schema(description = "Exact vacancy URL match — used for duplicate detection")
+        String vacancyLink,
         @Schema(description = "Note partial match")
         String note,
         @Schema(description = "Platform partial match")

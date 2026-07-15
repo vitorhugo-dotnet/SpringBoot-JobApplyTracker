@@ -51,7 +51,9 @@ public class McpApplicationTools {
     @McpTool(
             name = "List-Applications",
             title = "List Applications",
-            description = "List job applications with optional filters and pagination.",
+            description = "List job applications with optional filters and pagination. To check for a duplicate "
+                    + "before Create-Application, pass vacancyLink with the exact vacancy URL — this is the only "
+                    + "reliable way to detect an existing application; name/organization/recruiter similarity is not.",
             annotations = @McpAnnotations(
                     title = "List Applications",
                     readOnlyHint = true,
@@ -63,6 +65,7 @@ public class McpApplicationTools {
             McpSyncRequestContext ctx,
             @McpToolParam(required = false, description = "Status filter — display name, e.g. 'RH' or 'Teste Técnico'") String status,
             @McpToolParam(required = false, description = "Recruiter name partial match") String recruiterName,
+            @McpToolParam(required = false, description = "Exact vacancy URL match — use this for duplicate detection before Create-Application") String vacancyLink,
             @McpToolParam(required = false, description = "Application date range start yyyy-MM-dd (inclusive)") String applicationDateFrom,
             @McpToolParam(required = false, description = "Application date range end yyyy-MM-dd (inclusive)") String applicationDateTo,
             @McpToolParam(required = false, description = "Filter by interview scheduled flag") Boolean interviewScheduled,
@@ -77,7 +80,7 @@ public class McpApplicationTools {
         String    so   = sort != null ? sort : "createdAt,desc";
 
         ApplicationFilter filter = new ApplicationFilter(
-                null, status, null, recruiterName, null, null, null,
+                null, status, null, recruiterName, null, vacancyLink, null, null,
                 from, to, null, null, interviewScheduled, null, null, null, null, null, archived);
 
         return applicationService.getAll(filter, p, s, so);

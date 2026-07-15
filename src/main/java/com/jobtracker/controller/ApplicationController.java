@@ -175,6 +175,7 @@ public class ApplicationController {
             @Parameter(description = "Filter by vacancy name") @RequestParam(required = false) String vacancyName,
             @Parameter(description = "Filter by recruiter name") @RequestParam(required = false) String recruiterName,
             @Parameter(description = "Filter by organization") @RequestParam(required = false) String organization,
+            @Parameter(description = "Exact vacancy URL match — used for duplicate detection") @RequestParam(required = false) String vacancyLink,
             @Parameter(description = "Filter by note") @RequestParam(required = false) String note,
             @Parameter(description = "Filter by platform") @RequestParam(required = false) String platform,
             @Parameter(description = "Filter application date from (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate applicationDateFrom,
@@ -192,7 +193,7 @@ public class ApplicationController {
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "Sort field") @RequestParam(required = false) String sort) {
         ApplicationFilter filter = new ApplicationFilter(search, status, vacancyName, recruiterName,
-                organization, note, platform, applicationDateFrom, applicationDateTo,
+                organization, vacancyLink, note, platform, applicationDateFrom, applicationDateTo,
                 nextStepDateFrom, nextStepDateTo, interviewScheduled, recruiterDmReminderEnabled,
                 rhAcceptedConnection, toSendLater, interviewCountMin, interviewCountMax, archived);
         return ResponseEntity.ok(applicationService.getAll(filter, page, size, sort));

@@ -325,6 +325,10 @@ public class ApplicationService {
             addLike(predicates, cb, root, "note", filter.note());
             addLike(predicates, cb, root, "platform", filter.platform());
 
+            if (StringUtils.hasText(filter.vacancyLink())) {
+                predicates.add(cb.equal(root.get("vacancyLink"), filter.vacancyLink().trim()));
+            }
+
             if (filter.applicationDateFrom() != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("applicationDate"), filter.applicationDateFrom()));
             }
