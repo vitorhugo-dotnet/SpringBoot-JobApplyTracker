@@ -4,6 +4,20 @@
 
 A production-ready Spring Boot REST API for tracking job applications, built with Java 21, Spring Security JWT authentication, MariaDB, and comprehensive test coverage. Exposes all domain services via a **Model Context Protocol (MCP) server** so AI assistants (Claude Desktop, Claude.ai, and any MCP-compatible client) can manage applications on behalf of authenticated users.
 
+> **Alterações no MCP podem exigir atualização manual dos clientes.**
+> 
+> Ao adicionar, remover ou modificar **tools**, **resources**, **prompts**, instruções ou schemas do MCP, valide os clientes integrados após o deploy.
+> 
+> Alguns clientes mantêm cache das capacidades do servidor e podem continuar usando definições antigas. Quando necessário:
+> 
+> - desconecte e conecte novamente o servidor MCP;
+> - recrie ou atualize a integração;
+> - reinicie o cliente;
+> - valide novamente `tools/list`, `resources/list` e `prompts/list`;
+> - confirme que descrições, argumentos, schemas e instruções atualizados estão visíveis.
+> 
+> Não considere uma alteração do MCP concluída apenas porque o backend foi publicado. Confirme também que os clientes estão consumindo a versão mais recente.
+
 ## Tech Stack
 
 - **Java 21**
