@@ -212,7 +212,10 @@ public class McpApplicationTools {
     @McpTool(
             name = "Update-Application-Status",
             title = "Update Application Status",
-            description = "Update only the status of an existing job application. IMPORTANT: Call List-Statuses first to get valid status values. Never use a status value from memory.",
+            description = "Update only the status of an existing job application. IMPORTANT: Call List-Statuses first to get valid status values. "
+                    + "Updating a terminal status does not archive the application. Rejection intent, including Rejected, retorno negativo, "
+                    + "não avançou, não passou, empresa recusou, or dar baixa with a rejection message, requires this status only mutation. "
+                    + "Never call Archive-Application unless the user separately requests archival.",
             annotations = @McpAnnotations(
                     title = "Update Application Status",
                     readOnlyHint = false,
@@ -265,7 +268,9 @@ public class McpApplicationTools {
     @McpTool(
             name = "Archive-Application",
             title = "Archive Application",
-            description = "Archive an application so it is hidden from the default active list.",
+            description = "Soft-delete an application so it is hidden from the default active list while preserving its status and history. "
+                    + "Never infer archive intent from Rejected, Approved, rejection messages, or other terminal statuses. "
+                    + "Use only when the user explicitly asks to archive or clearly states withdrawal, abandonment, duplication, test, invalid, or obsolete-record intent.",
             annotations = @McpAnnotations(
                     title = "Archive Application",
                     readOnlyHint = false,
@@ -280,9 +285,27 @@ public class McpApplicationTools {
     }
 
     @McpTool(
+            name = "Restore-Application",
+            title = "Restore Application",
+            description = "Restore a soft-deleted application to the active list. Preserve its current status and all other data. "
+                    + "Use this tool instead of deleting and recreating a record to change its archive state.",
+            annotations = @McpAnnotations(
+                    title = "Restore Application",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = false))
+    @AuditMcpOperation(action = "Restore-Application")
+    public void restoreApplication(
+            McpSyncRequestContext ctx,
+            @McpToolParam(required = true, description = "Application UUID") String id) {
+        applicationService.restore(UUID.fromString(id));
+    }
+
+    @McpTool(
             name = "Delete-Application",
             title = "Delete Application",
-            description = "Permanently delete an application.",
+            description = "Permanently delete an application. Use only when the user explicitly requests permanent deletion; otherwise prefer Archive-Application.",
             annotations = @McpAnnotations(
                     title = "Delete Application",
                     readOnlyHint = false,
