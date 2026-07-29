@@ -136,8 +136,11 @@ public class McpApplicationTools {
             name = "Create-Application",
             title = "Create Application",
             description = "Create a new job application record. IMPORTANT: Call List-Statuses first to get valid status values. Never use a status value from memory. "
-                    + "This tool must be called automatically whenever the user provides a vacancy in the context of applying, generating a resume, "
-                    + "contacting a recruiter, evaluating job fit, or preparing application materials, unless the exact vacancy URL is already registered.",
+                    + "This tool must be called automatically whenever the user provides a vacancy in the context of applying, generating a resume, contacting a recruiter, evaluating job fit, or preparing application materials. "
+                    + "Before calling it, you MUST search before creating: search active and archived applications using every available identifier, including vacancy URL, vacancy title, organization, and recruiter. "
+                    + "Do not rely only on the URL because vacancyLink is optional. An empty search result is not sufficient when the search was incomplete or weak. "
+                    + "Reuse confirmed duplicates. For a possible duplicate, show the matching records and obtain user confirmation that the vacancy is distinct. "
+                    + "Do not call Create-Application until all duplicate checks are complete and no confirmed or possible duplicate remains unresolved.",
             annotations = @McpAnnotations(
                     title = "Create Application",
                     readOnlyHint = false,
