@@ -17,17 +17,25 @@ class McpPromptsConfigTest {
     private final McpPromptsConfig prompts = new McpPromptsConfig();
 
     @Test
-    void intakeVacancyPrompt_enforcesMandatoryUrlBasedRegistrationWorkflow() {
+    void intakeVacancyPrompt_enforcesStrictDuplicateCheckBeforeCreation() {
         GetPromptResult result = prompts.intakeVacancyPrompt("Senior Java Backend - Julia Argueiro - https://example.com/vaga/123");
 
         String text = ((TextContent) result.messages().get(0).content()).text();
 
         assertThat(text)
-                .contains("List-Statuses → Search by exact vacancy URL → Create-Application when absent → Continue requested workflow")
-                .contains("Call List-Statuses")
-                .contains("exact vacancy URL")
-                .contains("Similar vacancy names, recruiters, organizations, salaries, or technology stacks are NOT sufficient")
-                .contains("resume, message, evaluation, or outreach");
+                .containsIgnoringCase("must search before creating")
+                .containsIgnoringCase("active applications")
+                .containsIgnoringCase("archived applications")
+                .containsIgnoringCase("vacancy title")
+                .containsIgnoringCase("organization")
+                .containsIgnoringCase("recruiter")
+                .containsIgnoringCase("possible duplicate")
+                .containsIgnoringCase("an empty search result is not sufficient")
+                .containsIgnoringCase("do not call Create-Application until");
+
+        assertThat(text)
+                .doesNotContain("Search by exact vacancy URL → Create-Application when absent")
+                .doesNotContain("Similar vacancy names, recruiters, organizations, salaries, or technology stacks are NOT sufficient");
     }
 
     @Test

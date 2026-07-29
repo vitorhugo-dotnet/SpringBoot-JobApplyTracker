@@ -122,7 +122,11 @@ class McpApplicationToolsTest {
                 .contains("contacting a recruiter")
                 .contains("evaluating job fit")
                 .contains("preparing application materials")
-                .contains("unless the exact vacancy URL is already registered");
+                .containsIgnoringCase("must search before creating")
+                .containsIgnoringCase("active and archived")
+                .containsIgnoringCase("possible duplicate")
+                .containsIgnoringCase("an empty search result is not sufficient")
+                .containsIgnoringCase("do not call Create-Application until");
     }
 
     @Test

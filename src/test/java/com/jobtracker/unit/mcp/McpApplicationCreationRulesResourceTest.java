@@ -14,11 +14,18 @@ class McpApplicationCreationRulesResourceTest {
         String text = resource.applicationCreationRules(null);
 
         assertThat(text)
-                .contains("mandatory for all application-related actions")
-                .contains("exact vacancy URL")
-                .contains("are not sufficient evidence of a duplicate")
-                .contains("Reposts or new vacancy URLs must be registered as separate applications")
-                .contains("before resume or outreach generation")
-                .contains("confirm");
+                .containsIgnoringCase("must search before creating")
+                .containsIgnoringCase("active and archived")
+                .containsIgnoringCase("vacancy URL")
+                .containsIgnoringCase("vacancy title")
+                .containsIgnoringCase("organization")
+                .containsIgnoringCase("recruiter")
+                .containsIgnoringCase("possible duplicate")
+                .containsIgnoringCase("an empty search result is not sufficient")
+                .containsIgnoringCase("do not call Create-Application until");
+
+        assertThat(text)
+                .doesNotContain("duplicate only when the URL is identical")
+                .doesNotContain("Reposts or new vacancy URLs must be registered as separate applications");
     }
 }

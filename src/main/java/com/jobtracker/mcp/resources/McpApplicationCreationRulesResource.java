@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class McpApplicationCreationRulesResource {
 
-    private static final String LAST_MODIFIED = "2026-07-15";
+    private static final String LAST_MODIFIED = "2026-07-29";
 
     @McpResource(
             uri = McpResourcesConfig.URI_APPLICATION_CREATION_RULES,
@@ -34,19 +34,32 @@ public class McpApplicationCreationRulesResource {
                 Whenever the user provides a vacancy and shows application intent, register it before
                 performing the requested action. Never silently skip vacancy registration.
 
-                Duplicate detection must prioritize the exact vacancy URL: search existing applications by
-                the exact vacancy URL first. Similar vacancy names, recruiters, organizations, salaries, or
-                technology stacks are not sufficient evidence of a duplicate — treat the vacancy as a
-                duplicate only when the URL is identical or the user explicitly confirms it is the same
-                vacancy. Reposts or new vacancy URLs must be registered as separate applications, even when
-                title, recruiter, salary, and stack are identical to an existing application.
+                MANDATORY DUPLICATE CHECK: you MUST search before creating any application.
+                Extract every available identifier: vacancy URL, vacancy title, organization, and recruiter.
+                Search active applications separately using the available title, organization, and recruiter terms.
+                Then search archived applications as well; archived records MUST participate in duplicate detection.
+                Inspect all returned records and compare every available identifier, including vacancyLink when present.
+
+                An empty search result is not sufficient when only one weak, incomplete, or unrelated query was executed.
+                Do not rely only on vacancyLink because it is optional. Run multiple searches using the available identifiers.
+
+                Treat a matching record as a confirmed duplicate when the URL matches or when title, organization,
+                and recruiter identify the same vacancy with high confidence. Reuse the existing record and do not call
+                Create-Application.
+                Treat a matching record as a possible duplicate when title and organization match but other information
+                is missing, different, or inconclusive. Show the matching records and ask the user to confirm whether the
+                vacancy is distinct.
+
+                Do not call Create-Application until searches of active and archived applications are complete and no
+                confirmed or possible duplicate remains unresolved. When the matching record is archived, identify it as
+                archived and prefer Restore-Application when the user wants to continue the same application record.
 
                 Registration must happen before resume or outreach generation: call Create-Application (after
                 List-Statuses) first, then perform the requested resume, message, evaluation, or outreach
                 action only once the application exists.
 
-                Always confirm to the user, explicitly, that the vacancy was registered (or that it was
-                already registered under the same URL) before or alongside delivering the requested output.
+                Always confirm to the user, explicitly, that the vacancy was registered (or that an existing record was
+                reused) before or alongside delivering the requested output.
 
                 Apply these defaults on every Create-Application or Update-Application call:
 
