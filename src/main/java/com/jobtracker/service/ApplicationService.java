@@ -173,6 +173,16 @@ public class ApplicationService {
         return applicationMapper.toResponse(applicationRepository.save(app));
     }
 
+    @Transactional
+    public ApplicationResponse restore(UUID id) {
+        UUID userId = securityUtils.getCurrentUserId();
+        JobApplication app = applicationRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
+        app.setArchived(false);
+        app.setArchivedAt(null);
+        return applicationMapper.toResponse(applicationRepository.save(app));
+    }
+
     @Transactional(readOnly = true)
     public ApplicationPageResponse getAll(ApplicationFilter filter, int page, int size, String sort) {
         UUID userId = securityUtils.getCurrentUserId();
