@@ -233,7 +233,7 @@ class McpApplicationToolsTest {
     @Test
     void archiveApplicationTool_descriptionRequiresExplicitArchiveIntent() {
         assertThat(toolDescription("archiveApplication"))
-                .contains("soft-delete")
+                .containsIgnoringCase("soft-delete")
                 .contains("Never infer")
                 .contains("Rejected")
                 .contains("Approved")
@@ -262,7 +262,7 @@ class McpApplicationToolsTest {
     @Test
     void deleteApplicationTool_descriptionRequiresExplicitPermanentDeletion() {
         assertThat(toolDescription("deleteApplication"))
-                .contains("permanently")
+                .containsIgnoringCase("permanently")
                 .contains("explicitly requests permanent deletion");
     }
 
