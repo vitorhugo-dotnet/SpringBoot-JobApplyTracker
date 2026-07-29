@@ -133,6 +133,25 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void updateStatus_shouldNotChangeArchiveState() {
+        LocalDateTime archivedAt = LocalDateTime.now().minusDays(1);
+        app.setArchived(true);
+        app.setArchivedAt(archivedAt);
+        UpdateStatusRequest statusRequest = new UpdateStatusRequest("Rejected");
+        when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
+        when(applicationRepository.findByIdAndUserId(APP_UUID, USER_UUID)).thenReturn(Optional.of(app));
+        when(applicationStatusRepository.existsByName("Rejected")).thenReturn(true);
+        when(applicationRepository.save(app)).thenReturn(app);
+        when(applicationMapper.toResponse(app)).thenReturn(response);
+
+        applicationService.updateStatus(APP_UUID, statusRequest);
+
+        assertThat(app.getStatus()).isEqualTo("Rejected");
+        assertThat(app.isArchived()).isTrue();
+        assertThat(app.getArchivedAt()).isEqualTo(archivedAt);
+    }
+
+    @Test
     void updateStatus_shouldClearApplicationDate_whenMarkedToSendLater() {
         UpdateStatusRequest statusRequest = new UpdateStatusRequest(null);
         when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
@@ -209,6 +228,24 @@ class ApplicationServiceTest {
         verify(applicationRepository).save(app);
         assertThat(app.isArchived()).isTrue();
         assertThat(app.getArchivedAt()).isNotNull();
+    }
+
+    @Test
+    void restore_shouldRestoreApplicationWithoutChangingStatus() {
+        app.setArchived(true);
+        app.setArchivedAt(LocalDateTime.now().minusDays(1));
+        app.setStatus("Rejected");
+        when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
+        when(applicationRepository.findByIdAndUserId(APP_UUID, USER_UUID)).thenReturn(Optional.of(app));
+        when(applicationRepository.save(app)).thenReturn(app);
+        when(applicationMapper.toResponse(app)).thenReturn(response);
+
+        applicationService.restore(APP_UUID);
+
+        assertThat(app.isArchived()).isFalse();
+        assertThat(app.getArchivedAt()).isNull();
+        assertThat(app.getStatus()).isEqualTo("Rejected");
+        verify(applicationRepository).save(app);
     }
 
     @Test
