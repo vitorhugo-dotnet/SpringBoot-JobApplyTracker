@@ -48,7 +48,9 @@ public class McpPromptsConfig {
                 MANDATORY REGISTRATION WORKFLOW (applies to this and every other application-related
                 request — generating/adapting a resume, drafting an email/WhatsApp/LinkedIn message,
                 contacting a recruiter, evaluating job fit, or preparing application materials):
-                List-Statuses → Search by exact vacancy URL → Create-Application when absent → Continue requested workflow
+                Extract identifiers → Search active applications → Search archived applications → Inspect confirmed
+                and possible duplicates → Resolve possible duplicates with the user → Create-Application only when safe
+                → Continue requested workflow
 
                 Follow this order exactly:
 
@@ -56,18 +58,23 @@ public class McpPromptsConfig {
                 Extract: vacancyName (title), organization (company), vacancyLink (URL if present),
                 required stack, seniority, vacancy language, recruiter name/email if present.
 
-                STEP 2 - Check for existing application (mandatory, do not skip)
-                Call List-Statuses to get the valid status values. Then call List-Applications/Search-Applications
-                and search for an existing application using the exact vacancy URL (vacancyLink).
-                Similar vacancy names, recruiters, organizations, salaries, or technology stacks are NOT sufficient
-                evidence of a duplicate. Treat the vacancy as a duplicate only when the vacancyLink is identical to
-                an existing application, or when I explicitly confirm it is the same vacancy.
-                If an exact-URL duplicate exists, return a message indicating that an application already exists
-                and provide its UUID. Do not proceed with the workflow if a duplicate application is found.
-                If the exact URL is not registered (including reposts of an otherwise similar vacancy under a new
-                URL), you MUST call Create-Application before performing the requested resume, message,
-                evaluation, or outreach action — never silently skip vacancy registration. This applies whether
-                the requested action is generating a resume, message, evaluation, or outreach.
+                STEP 2 - Check for confirmed and possible duplicates (mandatory, do not skip)
+                Call List-Statuses to obtain valid status values.
+                You MUST search before creating. Extract and use every available identifier: vacancy URL, vacancy title,
+                organization, and recruiter.
+                Search active applications separately using available title, organization, and recruiter terms. Then
+                repeat the search for archived applications by setting archived=true in List-Applications where applicable.
+                Inspect the returned records and compare all available identifiers, including vacancyLink when present.
+                Do not rely only on vacancyLink because it is optional.
+                An empty search result is not sufficient when the search was weak, incomplete, or used only one identifier.
+                A confirmed duplicate is an existing record with the same URL, or a record whose title, organization,
+                and recruiter identify the same vacancy with high confidence. Reuse it and do not call Create-Application.
+                A possible duplicate is a record whose title and organization match while other information is missing,
+                different, or inconclusive. Show the matching records and ask the user to confirm whether the vacancy is distinct.
+                Do not call Create-Application until active and archived searches are complete and no confirmed or possible
+                duplicate remains unresolved.
+                If the matching record is archived, report that state and prefer Restore-Application when the user intends
+                to continue the same record.
 
                 STEP 3 - Read my BASE INFORMATION (TOP PRIORITY, mandatory before generating any content)
                 - Call List-Base-Information and read EVERY document via Get-Base-Information-Content
@@ -101,7 +108,8 @@ public class McpPromptsConfig {
                 ATS-friendly, without inventing anything. Follow resume-workflow-rules for completeness and key formatting.
 
                 STEP 9 - Create the application
-                Follow application-creation-rules. Call Create-Application with the extracted data.
+                Follow application-creation-rules. Call Create-Application with the extracted data only after completing
+                STEP 2 and resolving every confirmed or possible duplicate.
                 Do NOT fill nextStepDateTime.
                 Note: ATS-focused summary (stack, seniority, fit, gaps).
 
