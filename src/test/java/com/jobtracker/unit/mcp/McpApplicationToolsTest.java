@@ -113,12 +113,7 @@ class McpApplicationToolsTest {
 
     @Test
     void createApplicationTool_descriptionMandatesAutomaticRegistration() {
-        Method method = java.util.Arrays.stream(McpApplicationTools.class.getDeclaredMethods())
-                .filter(m -> m.getName().equals("createApplication"))
-                .findFirst()
-                .orElseThrow();
-
-        String description = method.getAnnotation(McpTool.class).description();
+        String description = toolDescription("createApplication");
 
         assertThat(description)
                 .contains("must be called automatically")
@@ -194,6 +189,14 @@ class McpApplicationToolsTest {
     }
 
     @Test
+    void updateApplicationStatusTool_descriptionSeparatesStatusFromArchival() {
+        assertThat(toolDescription("updateApplicationStatus"))
+                .contains("does not archive")
+                .contains("Rejected")
+                .contains("status only");
+    }
+
+    @Test
     void updateApplicationReminder_passesEnabledFlag() {
         UUID id = UUID.randomUUID();
         ApplicationResponse expected = applicationResponseWithId(id);
@@ -228,12 +231,47 @@ class McpApplicationToolsTest {
     }
 
     @Test
+    void archiveApplicationTool_descriptionRequiresExplicitArchiveIntent() {
+        assertThat(toolDescription("archiveApplication"))
+                .contains("soft-delete")
+                .contains("Never infer")
+                .contains("Rejected")
+                .contains("Approved")
+                .contains("explicit");
+    }
+
+    @Test
+    void restoreApplication_delegatesToService() {
+        UUID id = UUID.randomUUID();
+        when(applicationService.restore(id)).thenReturn(applicationResponseWithId(id));
+
+        tools.restoreApplication(null, id.toString());
+
+        verify(applicationService).restore(id);
+    }
+
+    @Test
     void deleteApplication_delegatesToService() {
         UUID id = UUID.randomUUID();
 
         tools.deleteApplication(null, id.toString());
 
         verify(applicationService).delete(id);
+    }
+
+    @Test
+    void deleteApplicationTool_descriptionRequiresExplicitPermanentDeletion() {
+        assertThat(toolDescription("deleteApplication"))
+                .contains("permanently")
+                .contains("explicitly requests permanent deletion");
+    }
+
+    private static String toolDescription(String javaMethodName) {
+        Method method = java.util.Arrays.stream(McpApplicationTools.class.getDeclaredMethods())
+                .filter(candidate -> candidate.getName().equals(javaMethodName))
+                .findFirst()
+                .orElseThrow();
+        return method.getAnnotation(McpTool.class).description();
     }
 
     private static ApplicationResponse applicationResponseWithId(UUID id) {
