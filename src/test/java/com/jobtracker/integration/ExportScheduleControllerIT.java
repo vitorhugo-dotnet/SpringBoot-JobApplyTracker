@@ -22,6 +22,7 @@ import com.jobtracker.repository.UserRepository;
 import com.jobtracker.integration.support.RecordingDriveApiClient;
 import com.jobtracker.service.GoogleDriveApiClient;
 import com.jobtracker.service.export.ScheduledExportExecutor;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,6 +77,24 @@ class ExportScheduleControllerIT extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        clearDatabase();
+
+        ownerToken = register("Schedule Owner", "schedule-owner@example.com");
+        otherToken = register("Other User", "schedule-other@example.com");
+        owner = userRepository.findByEmail("schedule-owner@example.com").orElseThrow();
+    }
+
+    /**
+     * Runs before and after every test: these classes create users, applications and a Google Drive
+     * connection, and the in-memory database is shared with every other test class, so leaving rows
+     * behind would break whichever class clears the users table next.
+     */
+    @AfterEach
+    void tearDown() {
+        clearDatabase();
+    }
+
+    private void clearDatabase() {
         ((RecordingDriveApiClient) googleDriveApiClient).reset();
         exportExecutionRepository.deleteAll();
         exportScheduleRepository.deleteAll();
@@ -88,10 +107,6 @@ class ExportScheduleControllerIT extends AbstractIntegrationTest {
         passwordResetTokenRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
-
-        ownerToken = register("Schedule Owner", "schedule-owner@example.com");
-        otherToken = register("Other User", "schedule-other@example.com");
-        owner = userRepository.findByEmail("schedule-owner@example.com").orElseThrow();
     }
 
     @Test

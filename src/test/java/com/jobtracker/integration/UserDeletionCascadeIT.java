@@ -20,6 +20,7 @@ import com.jobtracker.repository.RefreshTokenRepository;
 import com.jobtracker.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -59,16 +60,22 @@ class UserDeletionCascadeIT extends AbstractIntegrationTest {
         ExportSchedule schedule = exportScheduleRepository.save(exportSchedule(user));
         exportExecutionRepository.save(exportExecution(user, schedule));
 
-        // Refresh tokens are cleared explicitly by every integration test, exactly as here; the
-        // Drive and export rows below are the ones that must disappear on their own.
-        refreshTokenRepository.deleteAll();
+        // Registration issues a refresh token, and that table has no cascade; every integration
+        // test clears it the same way. Only this user's tokens are removed, so rows belonging to
+        // other test classes are left untouched.
+        refreshTokenRepository.deleteAll(refreshTokenRepository.findAll().stream()
+                .filter(token -> user.getId().equals(token.getUser().getId()))
+                .toList());
 
-        assertThatCode(() -> userRepository.deleteAll()).doesNotThrowAnyException();
+        assertThatCode(() -> userRepository.delete(user)).doesNotThrowAnyException();
 
-        assertThat(connectionRepository.count()).isZero();
-        assertThat(baseResumeRepository.count()).isZero();
-        assertThat(exportScheduleRepository.count()).isZero();
-        assertThat(exportExecutionRepository.count()).isZero();
+        // Scoped to this user: the shared in-memory database may hold rows from other test classes.
+        assertThat(connectionRepository.findByUserId(user.getId())).isEmpty();
+        assertThat(baseResumeRepository.findAllByConnectionUserIdOrderByCreatedAtAsc(user.getId())).isEmpty();
+        assertThat(exportScheduleRepository.findAllByUserIdOrderByCreatedAtAsc(user.getId())).isEmpty();
+        assertThat(exportExecutionRepository
+                .findAllByUserIdOrderByStartedAtDesc(user.getId(), PageRequest.of(0, 1))
+                .getTotalElements()).isZero();
     }
 
     private User registerUser() throws Exception {
