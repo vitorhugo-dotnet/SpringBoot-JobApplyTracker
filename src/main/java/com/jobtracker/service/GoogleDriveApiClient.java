@@ -36,6 +36,10 @@ public interface GoogleDriveApiClient {
 
     byte[] downloadFileBytes(String accessToken, String fileId);
 
+    /** Uploads raw bytes as a new file in {@code parentFolderId}. */
+    DriveFileMetadata uploadFile(String accessToken, String parentFolderId, String fileName,
+                                 String mimeType, byte[] content);
+
     record OAuthTokens(String accessToken, String refreshToken, LocalDateTime accessTokenExpiresAt, String scope) {}
 
     record GoogleDriveAccountProfile(String accountId, String emailAddress, String displayName) {}

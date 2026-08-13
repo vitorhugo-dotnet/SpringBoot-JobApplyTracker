@@ -284,6 +284,21 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
     }
 
     @Override
+    public DriveFileMetadata uploadFile(String accessToken, String parentFolderId, String fileName,
+                                        String mimeType, byte[] content) {
+        return executeDriveOp(accessToken, "upload file", drive -> {
+            File metadata = new File()
+                    .setName(fileName)
+                    .setParents(List.of(parentFolderId));
+            ByteArrayContent mediaContent = new ByteArrayContent(mimeType, content);
+            return toDriveFileMetadata(drive.files().create(metadata, mediaContent)
+                    .setSupportsAllDrives(true)
+                    .setFields("id,name,mimeType,webViewLink")
+                    .execute());
+        });
+    }
+
+    @Override
     public byte[] downloadFileBytes(String accessToken, String fileId) {
         return executeDriveOp(accessToken, "download file", drive -> {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

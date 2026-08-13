@@ -109,6 +109,12 @@ public class RetryingGoogleDriveApiClient implements GoogleDriveApiClient {
         return delegate.downloadFileBytes(accessToken, fileId);
     }
 
+    @Override
+    public DriveFileMetadata uploadFile(String accessToken, String parentFolderId, String fileName,
+                                        String mimeType, byte[] content) {
+        return delegate.uploadFile(accessToken, parentFolderId, fileName, mimeType, content);
+    }
+
     @Transactional
     private GoogleDriveConnection refreshCurrentUserConnection() {
         if (!googleDriveProperties.isConfigured()) {

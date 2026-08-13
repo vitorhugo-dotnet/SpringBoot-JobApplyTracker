@@ -132,6 +132,15 @@ app:
     scopes: ${MCP_SCOPES:openid,read:profile,read:applications,write:applications,read:resume,read:google-drive,read:metrics}
     access-token-expiration-seconds: ${MCP_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
     refresh-token-expiration-seconds: ${MCP_REFRESH_TOKEN_EXPIRATION_SECONDS:2592000}
+  export:
+    max-records: ${APP_EXPORT_MAX_RECORDS:10000}
+    page-size: ${APP_EXPORT_PAGE_SIZE:500}
+    default-timezone: ${APP_EXPORT_DEFAULT_TIMEZONE:America/Sao_Paulo}
+    max-schedules-per-user: ${APP_EXPORT_MAX_SCHEDULES_PER_USER:10}
+    scheduler-enabled: ${APP_EXPORT_SCHEDULER_ENABLED:true}
+    scheduler-interval-ms: ${APP_EXPORT_SCHEDULER_INTERVAL_MS:60000}
+    lock-timeout-minutes: ${APP_EXPORT_LOCK_TIMEOUT_MINUTES:30}
+    drive-folder-name: ${APP_EXPORT_DRIVE_FOLDER_NAME:Applywell Exports}
   webauthn:
     rp-id: ${APP_WEBAUTHN_RP_ID:localhost}
     rp-name: ${APP_WEBAUTHN_RP_NAME:JobApplyTracker}
@@ -198,6 +207,10 @@ resilience4j:
         limit-for-period: ${RATE_LIMIT_FORM_LOGIN_LIMIT_FOR_PERIOD:10}
         limit-refresh-period: ${RATE_LIMIT_FORM_LOGIN_REFRESH_PERIOD:1m}
         timeout-duration: ${RATE_LIMIT_FORM_LOGIN_TIMEOUT_DURATION:0}
+      exportManual:
+        limit-for-period: ${RATE_LIMIT_EXPORT_MANUAL_LIMIT_FOR_PERIOD:10}
+        limit-refresh-period: ${RATE_LIMIT_EXPORT_MANUAL_REFRESH_PERIOD:1m}
+        timeout-duration: ${RATE_LIMIT_EXPORT_MANUAL_TIMEOUT_DURATION:0}
 
 springdoc:
   api-docs:
@@ -214,3 +227,6 @@ springdoc:
     - group: gamification
       display-name: Gamification API
       paths-to-match: /api/v1/gamification/**
+    - group: exports
+      display-name: Exports API
+      paths-to-match: /api/v1/exports/**, /api/v1/export-schedules/**

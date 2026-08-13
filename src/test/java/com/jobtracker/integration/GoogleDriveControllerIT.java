@@ -787,5 +787,16 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
         public byte[] downloadFileBytes(String accessToken, String fileId) {
             return fileBytesById.getOrDefault(fileId, new byte[0]);
         }
+
+        @Override
+        public DriveFileMetadata uploadFile(String accessToken, String parentFolderId, String fileName,
+                                            String mimeType, byte[] content) {
+            String fileId = "uploaded-" + fileName;
+            fileBytesById.put(fileId, content);
+            DriveFileMetadata metadata = new DriveFileMetadata(
+                    fileId, fileName, mimeType, "https://drive.google.com/file/d/" + fileId + "/view");
+            fileMetadataById.put(fileId, metadata);
+            return metadata;
+        }
     }
 }

@@ -233,8 +233,17 @@ public class GoogleDriveService {
     }
 
     private GoogleDriveConnection getConnectionWithFreshAccessToken() {
+        return getConnectionWithFreshAccessToken(securityUtils.getCurrentUserId());
+    }
+
+    /**
+     * Same as the request-scoped lookup, but for an explicit user — used by background jobs such as
+     * scheduled exports, which run without a {@code SecurityContext}.
+     */
+    @Transactional
+    public GoogleDriveConnection getConnectionWithFreshAccessToken(UUID userId) {
         requireServerConfigured();
-        GoogleDriveConnection connection = connectionRepository.findByUserId(securityUtils.getCurrentUserId())
+        GoogleDriveConnection connection = connectionRepository.findByUserId(userId)
                 .orElseThrow(() -> new BadRequestException("Google Drive is not connected for the current user"));
         return refreshAccessTokenIfNeeded(connection);
     }

@@ -29,6 +29,10 @@ jwt:
   refresh-token-expiration-ms: 604800000
 
 app:
+  export:
+    # Tests trigger executions explicitly; the poller stays off so runs are deterministic.
+    scheduler-enabled: false
+    default-timezone: America/Sao_Paulo
   api:
     base-url: https://jobapply-api.hugojava.dev
   frontend:
@@ -103,6 +107,10 @@ resilience4j:
         limit-refresh-period: 1m
         timeout-duration: 0
       formLogin:
+        limit-for-period: 1000
+        limit-refresh-period: 1m
+        timeout-duration: 0
+      exportManual:
         limit-for-period: 1000
         limit-refresh-period: 1m
         timeout-duration: 0

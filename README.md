@@ -96,6 +96,81 @@ A production-ready Spring Boot REST API for tracking job applications, built wit
 | GET | `/api/v1/applications/upcoming` | Upcoming next steps |
 | GET | `/api/v1/applications/overdue` | Overdue next steps |
 
+### Exports
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/exports/applications` | Download the authenticated user's applications as CSV or XLSX |
+| GET | `/api/v1/exports/columns` | List every exportable column key and its file header |
+| GET | `/api/v1/exports/history` | Paginated history of export attempts |
+| GET | `/api/v1/exports/history/{id}` | Detail of a single export attempt |
+| POST | `/api/v1/export-schedules` | Create a recurring export |
+| GET | `/api/v1/export-schedules` | List the user's recurring exports |
+| GET | `/api/v1/export-schedules/{id}` | Get one recurring export |
+| PUT | `/api/v1/export-schedules/{id}` | Replace a recurring export |
+| PATCH | `/api/v1/export-schedules/{id}/enabled` | Enable or disable a recurring export |
+| DELETE | `/api/v1/export-schedules/{id}` | Delete a recurring export (history is kept) |
+| POST | `/api/v1/export-schedules/{id}/run-now` | Run a recurring export immediately (202, async) |
+
+Manual export request:
+
+```json
+{
+  "format": "CSV",
+  "filters": {
+    "status": ["RH"],
+    "applicationDateFrom": "2026-07-01",
+    "applicationDateTo": "2026-07-31",
+    "archived": null,
+    "organization": "ACME"
+  },
+  "columns": []
+}
+```
+
+The response is an attachment named `applywell-applications-<yyyy-MM-dd>.<csv|xlsx>` plus the
+`X-Export-Record-Count` and `X-Export-Truncated` headers. An empty `columns` array exports every
+column; unknown keys are rejected with 400.
+
+Recurring export request:
+
+```json
+{
+  "name": "Backup diário das candidaturas",
+  "format": "XLSX",
+  "frequency": "DAILY",
+  "time": "20:00",
+  "timezone": "America/Sao_Paulo",
+  "enabled": true,
+  "filters": { "archived": null },
+  "destination": "GOOGLE_DRIVE"
+}
+```
+
+Notes:
+
+- **No cron from the client.** The recurrence is stored as a validated domain configuration
+  (`DAILY` / `WEEKLY` + `dayOfWeek` / `MONTHLY` + `dayOfMonth`, plus `time` and `timezone`) and the
+  next execution instant is derived internally and persisted in UTC.
+- **Filters** reuse the same predicates as the applications listing, always anchored on the
+  authenticated user. The one deliberate difference: `archived: null` exports active *and* archived
+  applications, because an export is a backup.
+- **Destination.** `GOOGLE_DRIVE` uploads the file to an exports folder inside the user's configured
+  Drive root folder. `EMAIL`, `OBJECT_STORAGE` and `WEBHOOK` are modelled but not implemented yet and
+  are rejected with 400. The container filesystem is never used as storage.
+- **Safety.** Cells starting with `=`, `+`, `-`, `@`, tab or CR are neutralized against CSV/formula
+  injection (plain numbers are left alone), CSV is written RFC 4180 with a UTF-8 BOM so Excel keeps
+  accents, and XLSX is streamed with `SXSSFWorkbook`.
+- **Concurrency.** Each run claims the schedule with a conditional UPDATE, so a schedule never runs
+  twice at the same time even across instances; a stale lock is reclaimed after
+  `app.export.lock-timeout-minutes`.
+- **Limits.** `app.export.max-records` caps a single export; the file is still produced and flagged
+  as truncated. Manual exports are rate-limited (`exportManual`).
+
+Configuration (`app.export.*`): `max-records`, `page-size`, `default-timezone`,
+`max-schedules-per-user`, `scheduler-enabled`, `scheduler-interval-ms`, `lock-timeout-minutes`,
+`drive-folder-name`.
+
 ## Authorization Model
 
 - JWT access tokens now include a `roles` claim (e.g., `ROLE_USER`, `ROLE_ADMIN`).
@@ -110,6 +185,8 @@ Flyway seeds the roles catalog (`USER`, `BETA`, `ADMIN`) and then assigns `ROLE_
 - `PUT /api/v1/auth/me`
 - `PUT /api/v1/auth/me/password`
 - `POST|GET|PUT|PATCH|DELETE /api/v1/applications/**`
+- `POST|GET /api/v1/exports/**`
+- `POST|GET|PUT|PATCH|DELETE /api/v1/export-schedules/**`
 - `GET|POST /api/v1/gamification/**`
 - `GET /api/v1/dashboard/summary`
 - `POST /api/v1/account/test-email`
