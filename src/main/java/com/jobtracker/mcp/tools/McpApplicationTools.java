@@ -2,6 +2,7 @@ package com.jobtracker.mcp.tools;
 
 import com.jobtracker.dto.application.ApplicationFilter;
 import com.jobtracker.dto.application.ApplicationPageResponse;
+import com.jobtracker.dto.application.ApplicationPatchRequest;
 import com.jobtracker.dto.application.ApplicationRequest;
 import com.jobtracker.dto.application.ApplicationResponse;
 import com.jobtracker.dto.application.MarkDmSentRequest;
@@ -210,6 +211,54 @@ public class McpApplicationTools {
                 recruiterDmReminderEnabled != null ? recruiterDmReminderEnabled : Boolean.FALSE,
                 note, platform, null);
         return applicationService.update(UUID.fromString(id), request);
+    }
+
+    @McpTool(
+            name = "Patch-Application",
+            title = "Patch Application",
+            description = "Partially update an existing job application. Only the parameters you send are changed; every omitted field keeps its current value. "
+                    + "Prefer this tool over Update-Application: never resend unrelated fields or boolean flags just to satisfy a schema. "
+                    + "Set archived to false to restore an archived application to the active list, or to true to archive it. "
+                    + "Restoring and archiving preserve the current status, and changing status never archives or restores a record. "
+                    + "IMPORTANT: Call List-Statuses first whenever you send status. Never use a status value from memory.",
+            annotations = @McpAnnotations(
+                    title = "Patch Application",
+                    readOnlyHint = false,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = false))
+    @AuditMcpOperation(action = "Patch-Application")
+    public ApplicationResponse patchApplication(
+            McpSyncRequestContext ctx,
+            @McpToolParam(required = true, description = "Application UUID to patch") String id,
+            @McpToolParam(required = false, description = "Job title or vacancy name") String vacancyName,
+            @McpToolParam(required = false, description = "Recruiter name") String recruiterName,
+            @McpToolParam(required = false, description = "Company or organization name") String organization,
+            @McpToolParam(required = false, description = "URL to the vacancy posting") String vacancyLink,
+            @McpToolParam(required = false, description = "Date applied yyyy-MM-dd") String applicationDate,
+            @McpToolParam(required = false, description = "Whether the recruiter accepted a LinkedIn connection") Boolean rhAcceptedConnection,
+            @McpToolParam(required = false, description = "Whether an interview has been scheduled") Boolean interviewScheduled,
+            @McpToolParam(required = false, description = "Next follow-up date/time yyyy-MM-ddTHH:mm:ss") String nextStepDateTime,
+            @McpToolParam(required = false, description = "Status display name from List-Statuses") String status,
+            @McpToolParam(required = false, description = "Whether a DM reminder to the recruiter is enabled") Boolean recruiterDmReminderEnabled,
+            @McpToolParam(required = false, description = "Personal notes about this application") String note,
+            @McpToolParam(required = false, description = "Platform or job board where the vacancy was found, e.g. LinkedIn, Gupy, Indeed, Catho") String platform,
+            @McpToolParam(required = false, description = "true to archive the application, false to restore it to the active list. Independent of status.") Boolean archived) {
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        if (vacancyName != null) request.setVacancyName(vacancyName);
+        if (recruiterName != null) request.setRecruiterName(recruiterName);
+        if (organization != null) request.setOrganization(organization);
+        if (vacancyLink != null) request.setVacancyLink(vacancyLink);
+        if (applicationDate != null) request.setApplicationDate(LocalDate.parse(applicationDate));
+        if (rhAcceptedConnection != null) request.setRhAcceptedConnection(rhAcceptedConnection);
+        if (interviewScheduled != null) request.setInterviewScheduled(interviewScheduled);
+        if (nextStepDateTime != null) request.setNextStepDateTime(LocalDateTime.parse(nextStepDateTime));
+        if (status != null) request.setStatus(status);
+        if (recruiterDmReminderEnabled != null) request.setRecruiterDmReminderEnabled(recruiterDmReminderEnabled);
+        if (note != null) request.setNote(note);
+        if (platform != null) request.setPlatform(platform);
+        if (archived != null) request.setArchived(archived);
+        return applicationService.patch(UUID.fromString(id), request);
     }
 
     @McpTool(

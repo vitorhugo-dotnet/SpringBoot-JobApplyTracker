@@ -158,6 +158,31 @@ class McpToolsE2ETest extends AbstractE2ETest {
     }
 
     @Test
+    void toolsList_advertisesPatchApplicationWithOnlyIdRequiredAndAnArchivedFlag() {
+        Response response = given()
+                .header("Authorization", "Bearer " + betaAccessToken)
+                .header(MCP_SESSION_ID_HEADER, mcpSessionId)
+                .accept("application/json, text/event-stream")
+                .contentType("application/json")
+                .body(TOOLS_LIST_BODY)
+                .post(MCP_ENDPOINT)
+                .then().statusCode(200).extract().response();
+
+        JsonPath body = mcpJsonRpcBody(response);
+        assertThat(body.getList("result.tools.name", String.class))
+                .as("Expected 'Patch-Application' in the tools/list response — issue #69")
+                .contains("Patch-Application");
+
+        String schemaPath = "result.tools.find { it.name == 'Patch-Application' }.inputSchema";
+        assertThat(body.getMap(schemaPath + ".properties").keySet())
+                .as("Patch-Application must accept the archived flag so archived records can be restored")
+                .contains("archived", "status", "note");
+        assertThat(body.getList(schemaPath + ".required", String.class))
+                .as("Only the application id may be required; every patchable field stays optional")
+                .containsExactly("id");
+    }
+
+    @Test
     void listBaseInformationTool_authenticatedBetaUser_returnsSuccessfulResult() {
         Response response = given()
                 .header("Authorization", "Bearer " + betaAccessToken)

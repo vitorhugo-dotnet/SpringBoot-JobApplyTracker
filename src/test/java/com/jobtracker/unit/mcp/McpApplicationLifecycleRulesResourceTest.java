@@ -25,4 +25,14 @@ class McpApplicationLifecycleRulesResourceTest {
                 .contains("permanent deletion")
                 .contains("Do not delete and recreate");
     }
+
+    @Test
+    void applicationLifecycleRules_documentPatchApplicationAsThePartialUpdateTool() {
+        String text = resource.applicationLifecycleRules(null);
+
+        assertThat(text)
+                .contains("Patch-Application")
+                .contains("archived = false")
+                .contains("only the fields you send");
+    }
 }

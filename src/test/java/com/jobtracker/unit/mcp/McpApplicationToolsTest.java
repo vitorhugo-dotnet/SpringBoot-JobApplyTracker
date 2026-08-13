@@ -2,6 +2,7 @@ package com.jobtracker.unit.mcp;
 
 import com.jobtracker.dto.application.ApplicationFilter;
 import com.jobtracker.dto.application.ApplicationPageResponse;
+import com.jobtracker.dto.application.ApplicationPatchRequest;
 import com.jobtracker.dto.application.ApplicationRequest;
 import com.jobtracker.dto.application.ApplicationResponse;
 import com.jobtracker.dto.application.MarkDmSentRequest;
@@ -16,8 +17,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springaicommunity.mcp.annotation.McpTool;
+import org.springaicommunity.mcp.annotation.McpToolParam;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -180,6 +183,113 @@ class McpApplicationToolsTest {
     }
 
     @Test
+    void patchApplication_sendsOnlyTheProvidedFields() {
+        UUID id = UUID.randomUUID();
+        ArgumentCaptor<ApplicationPatchRequest> captor = ArgumentCaptor.forClass(ApplicationPatchRequest.class);
+        when(applicationService.patch(eq(id), any())).thenReturn(applicationResponseWithId(id));
+
+        tools.patchApplication(null, id.toString(), null, null, null, null, null, null, null,
+                null, null, null, null, null, Boolean.FALSE);
+
+        verify(applicationService).patch(eq(id), captor.capture());
+        ApplicationPatchRequest request = captor.getValue();
+        assertThat(request.hasArchived()).isTrue();
+        assertThat(request.getArchived()).isFalse();
+        assertThat(request.hasStatus()).isFalse();
+        assertThat(request.hasVacancyName()).isFalse();
+        assertThat(request.hasRhAcceptedConnection()).isFalse();
+        assertThat(request.hasInterviewScheduled()).isFalse();
+        assertThat(request.hasRecruiterDmReminderEnabled()).isFalse();
+    }
+
+    @Test
+    void patchApplication_mapsAllParams() {
+        UUID id = UUID.randomUUID();
+        ArgumentCaptor<ApplicationPatchRequest> captor = ArgumentCaptor.forClass(ApplicationPatchRequest.class);
+        when(applicationService.patch(eq(id), any())).thenReturn(applicationResponseWithId(id));
+
+        tools.patchApplication(
+                null,
+                id.toString(),
+                "Backend Engineer",
+                "Jane Smith",
+                "TechCorp",
+                "https://example.com/job",
+                "2025-06-01",
+                Boolean.TRUE,
+                Boolean.FALSE,
+                "2025-06-10T14:00:00",
+                "RH",
+                Boolean.TRUE,
+                "Follow up Monday",
+                "LinkedIn",
+                Boolean.TRUE);
+
+        verify(applicationService).patch(eq(id), captor.capture());
+        ApplicationPatchRequest request = captor.getValue();
+        assertThat(request.getVacancyName()).isEqualTo("Backend Engineer");
+        assertThat(request.getRecruiterName()).isEqualTo("Jane Smith");
+        assertThat(request.getOrganization()).isEqualTo("TechCorp");
+        assertThat(request.getVacancyLink()).isEqualTo("https://example.com/job");
+        assertThat(request.getApplicationDate()).isEqualTo(LocalDate.of(2025, 6, 1));
+        assertThat(request.getRhAcceptedConnection()).isTrue();
+        assertThat(request.getInterviewScheduled()).isFalse();
+        assertThat(request.getNextStepDateTime()).isEqualTo(LocalDateTime.of(2025, 6, 10, 14, 0, 0));
+        assertThat(request.getStatus()).isEqualTo("RH");
+        assertThat(request.getRecruiterDmReminderEnabled()).isTrue();
+        assertThat(request.getNote()).isEqualTo("Follow up Monday");
+        assertThat(request.getPlatform()).isEqualTo("LinkedIn");
+        assertThat(request.getArchived()).isTrue();
+    }
+
+    @Test
+    void patchApplication_returnsUpdatedApplication() {
+        UUID id = UUID.randomUUID();
+        ApplicationResponse expected = applicationResponseWithId(id);
+        when(applicationService.patch(eq(id), any())).thenReturn(expected);
+
+        ApplicationResponse result = tools.patchApplication(null, id.toString(), null, null, null, null,
+                null, null, null, null, null, null, null, null, Boolean.FALSE);
+
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @Test
+    void patchApplicationTool_isExposedWithPartialUpdateAndArchiveSemantics() {
+        Method method = toolMethod("patchApplication");
+
+        assertThat(method.getAnnotation(McpTool.class).name()).isEqualTo("Patch-Application");
+        assertThat(method.getAnnotation(McpTool.class).description())
+                .containsIgnoringCase("partially update")
+                .contains("omitted field")
+                .contains("archived")
+                .containsIgnoringCase("restore")
+                .contains("List-Statuses")
+                .contains("never archives or restores");
+    }
+
+    @Test
+    void patchApplicationTool_schemaMarksOnlyIdAsRequired() {
+        Method method = toolMethod("patchApplication");
+        Parameter[] parameters = method.getParameters();
+
+        // parameters[0] is the framework-injected McpSyncRequestContext, which carries no @McpToolParam.
+        assertThat(parameters[1].getAnnotation(McpToolParam.class).required()).isTrue();
+        assertThat(java.util.Arrays.stream(parameters)
+                .map(p -> p.getAnnotation(McpToolParam.class))
+                .filter(java.util.Objects::nonNull)
+                .filter(McpToolParam::required)
+                .count()).isEqualTo(1);
+
+        Parameter archived = parameters[parameters.length - 1];
+        assertThat(archived.getType()).isEqualTo(Boolean.class);
+        assertThat(archived.getAnnotation(McpToolParam.class).required()).isFalse();
+        assertThat(archived.getAnnotation(McpToolParam.class).description())
+                .contains("archive")
+                .contains("restore");
+    }
+
+    @Test
     void updateApplicationStatus_buildsCorrectRequest() {
         UUID id = UUID.randomUUID();
         ApplicationResponse expected = applicationResponseWithId(id);
@@ -271,11 +381,14 @@ class McpApplicationToolsTest {
     }
 
     private static String toolDescription(String javaMethodName) {
-        Method method = java.util.Arrays.stream(McpApplicationTools.class.getDeclaredMethods())
+        return toolMethod(javaMethodName).getAnnotation(McpTool.class).description();
+    }
+
+    private static Method toolMethod(String javaMethodName) {
+        return java.util.Arrays.stream(McpApplicationTools.class.getDeclaredMethods())
                 .filter(candidate -> candidate.getName().equals(javaMethodName))
                 .findFirst()
                 .orElseThrow();
-        return method.getAnnotation(McpTool.class).description();
     }
 
     private static ApplicationResponse applicationResponseWithId(UUID id) {

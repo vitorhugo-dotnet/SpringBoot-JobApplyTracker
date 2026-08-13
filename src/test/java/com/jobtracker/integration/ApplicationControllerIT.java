@@ -253,6 +253,144 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void patchApplication_shouldRestoreArchivedApplicationAndKeepItsStatus() throws Exception {
+        String id = createApplication("Restore Me");
+
+        mockMvc.perform(patch("/api/v1/applications/{id}/status", id)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"Rejected\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("Rejected"))
+                .andExpect(jsonPath("$.archived").value(false));
+
+        mockMvc.perform(patch("/api/v1/applications/{id}", id)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archived\": true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.archived").value(true))
+                .andExpect(jsonPath("$.archivedAt").exists())
+                .andExpect(jsonPath("$.status").value("Rejected"));
+
+        mockMvc.perform(patch("/api/v1/applications/{id}", id)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archived\": false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.archived").value(false))
+                .andExpect(jsonPath("$.archivedAt").doesNotExist())
+                .andExpect(jsonPath("$.status").value("Rejected"));
+
+        mockMvc.perform(get("/api/v1/applications")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.applications[0].status").value("Rejected"));
+
+        mockMvc.perform(get("/api/v1/applications")
+                        .param("archived", "true")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void patchApplication_archivingTwice_shouldKeepTheFirstArchivedAt() throws Exception {
+        String id = createApplication("Idempotent Archive");
+
+        MvcResult firstArchive = mockMvc.perform(patch("/api/v1/applications/{id}", id)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archived\": true}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String archivedAt = objectMapper.readTree(firstArchive.getResponse().getContentAsString())
+                .get("archivedAt").asText();
+
+        mockMvc.perform(patch("/api/v1/applications/{id}", id)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archived\": true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.archived").value(true))
+                .andExpect(jsonPath("$.archivedAt").value(archivedAt));
+    }
+
+    @Test
+    void patchApplication_shouldLeaveOmittedFieldsUnchanged() throws Exception {
+        String id = createApplication("Partial Update");
+
+        mockMvc.perform(patch("/api/v1/applications/{id}", id)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\": \"Only the note changed\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.note").value("Only the note changed"))
+                .andExpect(jsonPath("$.vacancyName").value("Partial Update"))
+                .andExpect(jsonPath("$.recruiterName").value("Some Recruiter"))
+                .andExpect(jsonPath("$.organization").value("HR Department"))
+                .andExpect(jsonPath("$.status").value("RH"))
+                .andExpect(jsonPath("$.applicationDate").value(LocalDate.now().minusDays(1).toString()));
+    }
+
+    @Test
+    void patchApplication_shouldRejectInvalidStatus() throws Exception {
+        String id = createApplication("Bad Status");
+
+        mockMvc.perform(patch("/api/v1/applications/{id}", id)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"Not A Real Status\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void patchApplication_shouldReturn404_whenNotFound() throws Exception {
+        mockMvc.perform(patch("/api/v1/applications/{id}", UUID.randomUUID())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archived\": false}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void patchApplication_shouldReturn403_whenNotAuthenticated() throws Exception {
+        String id = createApplication("Unauthenticated Patch");
+
+        mockMvc.perform(patch("/api/v1/applications/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archived\": false}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void patchApplication_shouldReturn404_whenApplicationBelongsToAnotherUser() throws Exception {
+        String id = createApplication("Owned By First User");
+
+        RegisterRequest otherUser = new RegisterRequest(
+                "Other User", "otheruser@example.com", "pass1234", "pass1234", true);
+        MvcResult registerResult = mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(otherUser)))
+                .andReturn();
+        String otherToken = objectMapper.readValue(
+                registerResult.getResponse().getContentAsString(), AuthResponse.class).accessToken();
+
+        mockMvc.perform(patch("/api/v1/applications/{id}", id)
+                        .header("Authorization", "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archived\": true}"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/v1/applications/{id}", id)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.archived").value(false));
+    }
+
+    @Test
     void getAll_shouldReturnPagedResponse() throws Exception {
         mockMvc.perform(post("/api/v1/applications")
                 .header("Authorization", "Bearer " + accessToken)
@@ -376,6 +514,16 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currentXp").value(expectedXp))
                 .andExpect(jsonPath("$.level").value(expectedLevel));
+    }
+
+    private String createApplication(String vacancyName) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/applications")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(buildRequest(vacancyName))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText();
     }
 
     private ApplicationRequest buildRequest(String vacancyName) {

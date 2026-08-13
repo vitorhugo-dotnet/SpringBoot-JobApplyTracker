@@ -83,6 +83,25 @@ public class ApplicationController {
     }
 
     @Operation(
+        summary = "Partially update a job application",
+        description = "Updates only the fields present in the request body; omitted fields keep their current value. "
+                + "Setting 'archived' to false restores an archived application without changing its status.",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Application updated",
+                content = @Content(schema = @Schema(implementation = ApplicationResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Validation error"),
+            @ApiResponse(responseCode = "404", description = "Application not found")
+        }
+    )
+    @PreAuthorize("hasRole('USER') or hasAuthority('SCOPE_write:applications')")
+    @PatchMapping("/{id}")
+    public ResponseEntity<ApplicationResponse> patch(
+            @Parameter(description = "Application ID", required = true) @PathVariable UUID id,
+            @Valid @RequestBody ApplicationPatchRequest request) {
+        return ResponseEntity.ok(applicationService.patch(id, request));
+    }
+
+    @Operation(
         summary = "Update application status",
         description = "Partially updates only the status field of an application",
         responses = {
