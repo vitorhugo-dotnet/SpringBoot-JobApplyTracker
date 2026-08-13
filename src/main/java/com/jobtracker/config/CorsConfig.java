@@ -21,7 +21,10 @@ public class CorsConfig {
         configuration.setAllowedOriginPatterns(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With", "Origin"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        // Content-Disposition + the export metadata headers must be readable by the browser so the
+        // frontend can name the downloaded file and report how many rows it holds.
+        configuration.setExposedHeaders(List.of(
+                "Authorization", "Content-Disposition", "X-Export-Record-Count", "X-Export-Truncated"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
