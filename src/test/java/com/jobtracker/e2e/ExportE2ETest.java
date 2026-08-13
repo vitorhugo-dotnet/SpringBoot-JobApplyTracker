@@ -10,6 +10,7 @@ import com.jobtracker.repository.UserGamificationRepository;
 import com.jobtracker.repository.UserInterviewMetricsRepository;
 import com.jobtracker.repository.UserRepository;
 import io.restassured.response.Response;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,15 +39,7 @@ class ExportE2ETest extends AbstractE2ETest {
 
     @BeforeEach
     void setUp() {
-        exportExecutionRepository.deleteAll();
-        exportScheduleRepository.deleteAll();
-        userAchievementRepository.deleteAll();
-        userGamificationRepository.deleteAll();
-        interviewEventRepository.deleteAll();
-        applicationRepository.deleteAll();
-        refreshTokenRepository.deleteAll();
-        userInterviewMetricsRepository.deleteAll();
-        userRepository.deleteAll();
+        clearDatabase();
 
         Response register = given()
                 .contentType("application/json")
@@ -63,6 +56,28 @@ class ExportE2ETest extends AbstractE2ETest {
                 .then().statusCode(201).extract().response();
 
         accessToken = register.jsonPath().getString("accessToken");
+    }
+
+    /**
+     * Also runs after each test: this class registers a user and creates applications, and the
+     * in-memory database is shared with every other test class, so anything left behind breaks
+     * whichever class clears the users table next.
+     */
+    @AfterEach
+    void tearDown() {
+        clearDatabase();
+    }
+
+    private void clearDatabase() {
+        exportExecutionRepository.deleteAll();
+        exportScheduleRepository.deleteAll();
+        userAchievementRepository.deleteAll();
+        userGamificationRepository.deleteAll();
+        interviewEventRepository.deleteAll();
+        applicationRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
+        userInterviewMetricsRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test
