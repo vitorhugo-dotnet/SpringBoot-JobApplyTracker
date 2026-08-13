@@ -1,6 +1,7 @@
 package com.jobtracker.e2e;
 
 import com.jobtracker.repository.ApplicationRepository;
+import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.repository.PasswordResetTokenRepository;
 import com.jobtracker.repository.RefreshTokenRepository;
@@ -23,6 +24,7 @@ import static org.hamcrest.Matchers.*;
 class AuthE2ETest extends AbstractE2ETest {
 
     @Autowired private UserRepository userRepository;
+    @Autowired private GoogleDriveConnectionRepository googleDriveConnectionRepository;
     @Autowired private RefreshTokenRepository refreshTokenRepository;
     @Autowired private PasswordResetTokenRepository passwordResetTokenRepository;
     @Autowired private ApplicationRepository applicationRepository;
@@ -40,6 +42,8 @@ class AuthE2ETest extends AbstractE2ETest {
         passwordResetTokenRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         userInterviewMetricsRepository.deleteAll();
+        // A Drive connection points at its user, so it must go before the users it references.
+        googleDriveConnectionRepository.deleteAll();
         userRepository.deleteAll();
     }
 

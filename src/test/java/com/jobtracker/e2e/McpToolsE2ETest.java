@@ -4,6 +4,7 @@ import com.jobtracker.entity.Role;
 import com.jobtracker.entity.User;
 import com.jobtracker.entity.enums.RoleName;
 import com.jobtracker.repository.ApplicationRepository;
+import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.repository.RefreshTokenRepository;
 import com.jobtracker.repository.RoleRepository;
 import com.jobtracker.repository.UserRepository;
@@ -67,6 +68,7 @@ class McpToolsE2ETest extends AbstractE2ETest {
             """;
 
     @Autowired private UserRepository userRepository;
+    @Autowired private GoogleDriveConnectionRepository googleDriveConnectionRepository;
     @Autowired private RoleRepository roleRepository;
     @Autowired private RefreshTokenRepository refreshTokenRepository;
     @Autowired private ApplicationRepository applicationRepository;
@@ -78,6 +80,8 @@ class McpToolsE2ETest extends AbstractE2ETest {
     void setUp() {
         applicationRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        // A Drive connection points at its user, so it must go before the users it references.
+        googleDriveConnectionRepository.deleteAll();
         userRepository.deleteAll();
 
         given()

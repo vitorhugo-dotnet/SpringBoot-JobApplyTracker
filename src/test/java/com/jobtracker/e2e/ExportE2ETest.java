@@ -3,6 +3,7 @@ package com.jobtracker.e2e;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.ExportExecutionRepository;
 import com.jobtracker.repository.ExportScheduleRepository;
+import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.repository.RefreshTokenRepository;
 import com.jobtracker.repository.UserAchievementRepository;
@@ -25,6 +26,7 @@ import static org.hamcrest.Matchers.notNullValue;
 class ExportE2ETest extends AbstractE2ETest {
 
     @Autowired private UserRepository userRepository;
+    @Autowired private GoogleDriveConnectionRepository googleDriveConnectionRepository;
     @Autowired private RefreshTokenRepository refreshTokenRepository;
     @Autowired private ApplicationRepository applicationRepository;
     @Autowired private InterviewEventRepository interviewEventRepository;
@@ -46,6 +48,8 @@ class ExportE2ETest extends AbstractE2ETest {
         applicationRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         userInterviewMetricsRepository.deleteAll();
+        // A Drive connection points at its user, so it must go before the users it references.
+        googleDriveConnectionRepository.deleteAll();
         userRepository.deleteAll();
 
         Response register = given()

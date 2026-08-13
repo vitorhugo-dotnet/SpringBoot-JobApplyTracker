@@ -5,6 +5,7 @@ import com.jobtracker.dto.application.ApplicationRequest;
 import com.jobtracker.dto.auth.AuthResponse;
 import com.jobtracker.dto.auth.RegisterRequest;
 import com.jobtracker.repository.ApplicationRepository;
+import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.repository.PasswordResetTokenRepository;
 import com.jobtracker.repository.RefreshTokenRepository;
@@ -30,6 +31,7 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private UserRepository userRepository;
+    @Autowired private GoogleDriveConnectionRepository googleDriveConnectionRepository;
     @Autowired private RefreshTokenRepository refreshTokenRepository;
     @Autowired private PasswordResetTokenRepository passwordResetTokenRepository;
     @Autowired private ApplicationRepository applicationRepository;
@@ -49,6 +51,8 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
         applicationRepository.deleteAll();
         passwordResetTokenRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        // A Drive connection points at its user, so it must go before the users it references.
+        googleDriveConnectionRepository.deleteAll();
         userRepository.deleteAll();
 
         RegisterRequest reg = new RegisterRequest("App User", "appuser@example.com", "pass1234", "pass1234", true);

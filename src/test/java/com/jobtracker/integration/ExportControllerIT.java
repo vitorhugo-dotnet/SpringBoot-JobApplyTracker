@@ -7,6 +7,7 @@ import com.jobtracker.dto.auth.RegisterRequest;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.ExportExecutionRepository;
 import com.jobtracker.repository.ExportScheduleRepository;
+import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.repository.InterviewEventRepository;
 import com.jobtracker.repository.PasswordResetTokenRepository;
 import com.jobtracker.repository.RefreshTokenRepository;
@@ -40,6 +41,7 @@ class ExportControllerIT extends AbstractIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private UserRepository userRepository;
+    @Autowired private GoogleDriveConnectionRepository googleDriveConnectionRepository;
     @Autowired private RefreshTokenRepository refreshTokenRepository;
     @Autowired private PasswordResetTokenRepository passwordResetTokenRepository;
     @Autowired private ApplicationRepository applicationRepository;
@@ -64,6 +66,8 @@ class ExportControllerIT extends AbstractIntegrationTest {
         applicationRepository.deleteAll();
         passwordResetTokenRepository.deleteAll();
         refreshTokenRepository.deleteAll();
+        // A Drive connection points at its user, so it must go before the users it references.
+        googleDriveConnectionRepository.deleteAll();
         userRepository.deleteAll();
 
         ownerToken = register("Export Owner", "export-owner@example.com");
