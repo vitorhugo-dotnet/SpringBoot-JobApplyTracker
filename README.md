@@ -90,7 +90,9 @@ A production-ready Spring Boot REST API for tracking job applications, built wit
 | GET | `/api/v1/applications` | List all (paginated + filterable) |
 | GET | `/api/v1/applications/{id}` | Get by ID |
 | PUT | `/api/v1/applications/{id}` | Full update |
+| PATCH | `/api/v1/applications/{id}` | Partial update (omitted fields unchanged, incl. `archived`) |
 | PATCH | `/api/v1/applications/{id}/status` | Update status |
+| PATCH | `/api/v1/applications/{id}/archive` | Archive |
 | PATCH | `/api/v1/applications/{id}/reminder` | Toggle reminder |
 | DELETE | `/api/v1/applications/{id}` | Delete |
 | GET | `/api/v1/applications/upcoming` | Upcoming next steps |

@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -112,6 +113,21 @@ public class ApplicationService {
         boolean previousInterviewScheduled = app.isInterviewScheduled();
         String previousNote = app.getNote();
         mapRequestToEntity(request, app);
+        JobApplication saved = applicationRepository.save(app);
+        interviewMetricsService.recordStatusTransition(saved, previousStatus, saved.getStatus());
+        gamificationService.onApplicationUpdated(saved, previousStatus, previousInterviewScheduled, previousNote);
+        return applicationMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public ApplicationResponse patch(UUID id, ApplicationPatchRequest request) {
+        UUID userId = securityUtils.getCurrentUserId();
+        JobApplication app = applicationRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
+        String previousStatus = app.getStatus();
+        boolean previousInterviewScheduled = app.isInterviewScheduled();
+        String previousNote = app.getNote();
+        applyPatchToEntity(request, app);
         JobApplication saved = applicationRepository.save(app);
         interviewMetricsService.recordStatusTransition(saved, previousStatus, saved.getStatus());
         gamificationService.onApplicationUpdated(saved, previousStatus, previousInterviewScheduled, previousNote);
@@ -246,6 +262,86 @@ public class ApplicationService {
         app.setPlatform(request.platform());
         if (request.interviewCount() != null) {
             app.setInterviewCount(request.interviewCount());
+        }
+    }
+
+    private void applyPatchToEntity(ApplicationPatchRequest request, JobApplication app) {
+        if (request.hasVacancyName()) {
+            app.setVacancyName(normalizeOptionalText(request.getVacancyName()));
+        }
+        if (request.hasRecruiterName()) {
+            app.setRecruiterName(request.getRecruiterName());
+        }
+        if (request.hasOrganization()) {
+            app.setOrganization(request.getOrganization());
+        }
+        if (request.hasVacancyLink()) {
+            app.setVacancyLink(request.getVacancyLink());
+        }
+        if (request.hasRhAcceptedConnection()) {
+            app.setRhAcceptedConnection(request.getRhAcceptedConnection());
+        }
+        if (request.hasInterviewScheduled()) {
+            app.setInterviewScheduled(request.getInterviewScheduled());
+        }
+        if (request.hasNextStepDateTime()) {
+            app.setNextStepDateTime(request.getNextStepDateTime());
+        }
+        if (request.hasRecruiterDmReminderEnabled()) {
+            app.setRecruiterDmReminderEnabled(request.getRecruiterDmReminderEnabled());
+        }
+        if (request.hasNote()) {
+            app.setNote(normalizeOptionalText(request.getNote()));
+        }
+        if (request.hasPlatform()) {
+            app.setPlatform(request.getPlatform());
+        }
+        if (request.hasInterviewCount()) {
+            app.setInterviewCount(request.getInterviewCount());
+        }
+        // Status and application date are reconciled together because the draft ("to send later")
+        // flag derives from both. Leave them untouched when neither is part of the patch.
+        if (request.hasStatus() || request.hasApplicationDate()) {
+            applyStatusAndDatePatch(request, app);
+        }
+        if (request.hasArchived()) {
+            applyArchivedChange(app, request.getArchived());
+        }
+    }
+
+    private void applyStatusAndDatePatch(ApplicationPatchRequest request, JobApplication app) {
+        String status = request.hasStatus() ? request.getStatus() : app.getStatus();
+        LocalDate applicationDate = request.hasApplicationDate()
+                ? request.getApplicationDate() : app.getApplicationDate();
+
+        boolean isSendLater = status == null || status.isBlank()
+                || TO_SEND_LATER_STATUS.equalsIgnoreCase(status);
+        if (!isSendLater && applicationDate == null) {
+            throw new BadRequestException(
+                    "applicationDate is required when status is provided. Set status to null for 'To Send Later'.");
+        }
+
+        if (isSendLater) {
+            // Clears the application date and flags the record as a draft.
+            applyStatusChange(app, null);
+            return;
+        }
+        app.setToSendLater(false);
+        app.setApplicationDate(applicationDate);
+        // Only a status the caller actually sent needs validating; the stored one is already valid.
+        applyStatusChange(app, request.hasStatus() ? validateStatus(status) : status);
+    }
+
+    /** Archiving keeps the timestamp of the first archival so repeated calls are idempotent. */
+    private void applyArchivedChange(JobApplication app, boolean archived) {
+        if (!archived) {
+            app.setArchived(false);
+            app.setArchivedAt(null);
+            return;
+        }
+        if (!app.isArchived()) {
+            app.setArchived(true);
+            app.setArchivedAt(LocalDateTime.now());
         }
     }
 

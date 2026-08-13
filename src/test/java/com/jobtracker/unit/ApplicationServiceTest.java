@@ -249,6 +249,204 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void patch_shouldRestoreArchivedApplicationWithoutChangingStatus() {
+        app.setArchived(true);
+        app.setArchivedAt(LocalDateTime.now().minusDays(1));
+        app.setStatus("Rejected");
+        stubPatchLookup();
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setArchived(false);
+
+        applicationService.patch(APP_UUID, request);
+
+        assertThat(app.isArchived()).isFalse();
+        assertThat(app.getArchivedAt()).isNull();
+        assertThat(app.getStatus()).isEqualTo("Rejected");
+        verify(applicationRepository).save(app);
+    }
+
+    @Test
+    void patch_shouldArchiveAndStampArchivedAt() {
+        stubPatchLookup();
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setArchived(true);
+
+        applicationService.patch(APP_UUID, request);
+
+        assertThat(app.isArchived()).isTrue();
+        assertThat(app.getArchivedAt()).isNotNull();
+    }
+
+    @Test
+    void patch_archivingAlreadyArchivedApplication_keepsOriginalArchivedAt() {
+        LocalDateTime originalArchivedAt = LocalDateTime.now().minusDays(3);
+        app.setArchived(true);
+        app.setArchivedAt(originalArchivedAt);
+        stubPatchLookup();
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setArchived(true);
+
+        applicationService.patch(APP_UUID, request);
+
+        assertThat(app.isArchived()).isTrue();
+        assertThat(app.getArchivedAt()).isEqualTo(originalArchivedAt);
+    }
+
+    @Test
+    void patch_restoringActiveApplication_isIdempotent() {
+        stubPatchLookup();
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setArchived(false);
+
+        applicationService.patch(APP_UUID, request);
+
+        assertThat(app.isArchived()).isFalse();
+        assertThat(app.getArchivedAt()).isNull();
+    }
+
+    @Test
+    void patch_shouldLeaveOmittedFieldsUnchanged() {
+        app.setRecruiterName("Original Recruiter");
+        app.setPlatform("LinkedIn");
+        app.setInterviewScheduled(true);
+        stubPatchLookup();
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setNote("Updated note");
+
+        applicationService.patch(APP_UUID, request);
+
+        assertThat(app.getNote()).isEqualTo("Updated note");
+        assertThat(app.getVacancyName()).isEqualTo("Software Engineer");
+        assertThat(app.getRecruiterName()).isEqualTo("Original Recruiter");
+        assertThat(app.getPlatform()).isEqualTo("LinkedIn");
+        assertThat(app.isInterviewScheduled()).isTrue();
+        assertThat(app.getStatus()).isEqualTo("RH");
+        assertThat(app.getApplicationDate()).isEqualTo(LocalDate.now());
+    }
+
+    @Test
+    void patch_shouldValidateStatusAgainstRepository() {
+        stubPatchLookup();
+        when(applicationStatusRepository.existsByName("Technical Test")).thenReturn(true);
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setStatus("Technical Test");
+
+        applicationService.patch(APP_UUID, request);
+
+        assertThat(app.getStatus()).isEqualTo("Technical Test");
+        verify(interviewMetricsService).recordStatusTransition(app, "RH", "Technical Test");
+    }
+
+    @Test
+    void patch_applicationDateOnly_keepsStatusWithoutRevalidatingIt() {
+        LocalDate newDate = LocalDate.now().minusDays(5);
+        stubPatchLookup();
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setApplicationDate(newDate);
+
+        applicationService.patch(APP_UUID, request);
+
+        assertThat(app.getApplicationDate()).isEqualTo(newDate);
+        assertThat(app.getStatus()).isEqualTo("RH");
+        assertThat(app.isToSendLater()).isFalse();
+        verify(applicationStatusRepository, never()).existsByName(any());
+    }
+
+    @Test
+    void patch_shouldRejectUnknownStatus() {
+        when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
+        when(applicationRepository.findByIdAndUserId(APP_UUID, USER_UUID)).thenReturn(Optional.of(app));
+        when(applicationStatusRepository.existsByName("Nope")).thenReturn(false);
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setStatus("Nope");
+
+        assertThatThrownBy(() -> applicationService.patch(APP_UUID, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Invalid status value");
+    }
+
+    @Test
+    void patch_clearingStatus_movesApplicationBackToDraft() {
+        stubPatchLookup();
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setStatus(null);
+
+        applicationService.patch(APP_UUID, request);
+
+        assertThat(app.getStatus()).isNull();
+        assertThat(app.getApplicationDate()).isNull();
+        assertThat(app.isToSendLater()).isTrue();
+    }
+
+    @Test
+    void patch_clearingApplicationDateWhileStatusIsSet_shouldThrow() {
+        when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
+        when(applicationRepository.findByIdAndUserId(APP_UUID, USER_UUID)).thenReturn(Optional.of(app));
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setApplicationDate(null);
+
+        assertThatThrownBy(() -> applicationService.patch(APP_UUID, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("applicationDate is required");
+    }
+
+    @Test
+    void patch_shouldNotArchiveWhenStatusBecomesRejected() {
+        stubPatchLookup();
+        when(applicationStatusRepository.existsByName("Rejected")).thenReturn(true);
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setStatus("Rejected");
+
+        applicationService.patch(APP_UUID, request);
+
+        assertThat(app.getStatus()).isEqualTo("Rejected");
+        assertThat(app.isArchived()).isFalse();
+        assertThat(app.getArchivedAt()).isNull();
+    }
+
+    @Test
+    void patch_emptyPayload_leavesApplicationUntouched() {
+        stubPatchLookup();
+
+        applicationService.patch(APP_UUID, new ApplicationPatchRequest());
+
+        assertThat(app.getStatus()).isEqualTo("RH");
+        assertThat(app.getNote()).isEqualTo("Follow up this week");
+        assertThat(app.isArchived()).isFalse();
+    }
+
+    @Test
+    void patch_shouldThrow_whenApplicationBelongsToAnotherUser() {
+        when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
+        when(applicationRepository.findByIdAndUserId(OTHER_UUID, USER_UUID)).thenReturn(Optional.empty());
+
+        ApplicationPatchRequest request = new ApplicationPatchRequest();
+        request.setArchived(false);
+
+        assertThatThrownBy(() -> applicationService.patch(OTHER_UUID, request))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(applicationRepository, never()).save(any(JobApplication.class));
+    }
+
+    private void stubPatchLookup() {
+        when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
+        when(applicationRepository.findByIdAndUserId(APP_UUID, USER_UUID)).thenReturn(Optional.of(app));
+        when(applicationRepository.save(app)).thenReturn(app);
+        when(applicationMapper.toResponse(app)).thenReturn(response);
+    }
+
+    @Test
     void markDmSent_shouldAwardOnlyOnFirstSend() {
         when(securityUtils.getCurrentUserId()).thenReturn(USER_UUID);
         when(applicationRepository.findByIdAndUserId(APP_UUID, USER_UUID)).thenReturn(Optional.of(app));

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class McpApplicationLifecycleRulesResource {
 
-    private static final String LAST_MODIFIED = "2026-07-28";
+    private static final String LAST_MODIFIED = "2026-08-13";
 
     @McpResource(
             uri = McpResourcesConfig.URI_APPLICATION_LIFECYCLE_RULES,
@@ -66,7 +66,10 @@ public class McpApplicationLifecycleRulesResource {
                 - Never call `Archive-Application` after setting `Rejected` or `Approved` unless the user explicitly requested archival.
                 - When archival intent is ambiguous, do not archive. Ask for clarification when clarification is necessary.
                 - Always apply the least destructive mutation necessary to fulfill the request.
-                - Use `Restore-Application` to make an archived record active again. Restoration preserves the current status and all other data.
+                - Use `Restore-Application`, or `Patch-Application` with `archived = false`, to make an archived record active again.
+                  Restoration preserves the current status and all other data.
+                - Use `Patch-Application` for any partial change. It updates only the fields you send, so never resend unrelated
+                  fields or boolean flags to satisfy a schema.
                 - Permanent deletion is allowed only when the user explicitly requests permanent deletion.
                 - Do not delete and recreate an application to change its archive state without explicit user approval.
 
@@ -85,7 +88,10 @@ public class McpApplicationLifecycleRulesResource {
                 Action: set status to `Rejected`. Keep the record visible and non-archived.
 
                 User: `Arquivei por engano, restaure.`
-                Action: call `Restore-Application`. Preserve the current status.
+                Action: call `Restore-Application`, or `Patch-Application` with `archived = false`. Preserve the current status.
+
+                User: `Essa vaga rejeitada deveria estar na lista normal.`
+                Action: call `Patch-Application` with `archived = false` only. Do not change the status.
                 """;
     }
 }
