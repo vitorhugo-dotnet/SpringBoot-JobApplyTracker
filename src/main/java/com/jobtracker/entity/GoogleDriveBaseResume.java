@@ -1,6 +1,8 @@
 package com.jobtracker.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
@@ -21,6 +23,7 @@ public class GoogleDriveBaseResume {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "connection_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private GoogleDriveConnection connection;
 
     @Column(name = "google_file_id", nullable = false, length = 255)
