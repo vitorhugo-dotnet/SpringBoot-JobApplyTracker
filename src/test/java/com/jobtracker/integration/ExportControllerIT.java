@@ -17,6 +17,7 @@ import com.jobtracker.repository.UserRepository;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,23 @@ class ExportControllerIT extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        clearDatabase();
+
+        ownerToken = register("Export Owner", "export-owner@example.com");
+        otherToken = register("Other User", "export-other@example.com");
+    }
+
+    /**
+     * Runs before and after every test: these classes create users, applications and a Google Drive
+     * connection, and the in-memory database is shared with every other test class, so leaving rows
+     * behind would break whichever class clears the users table next.
+     */
+    @AfterEach
+    void tearDown() {
+        clearDatabase();
+    }
+
+    private void clearDatabase() {
         exportExecutionRepository.deleteAll();
         exportScheduleRepository.deleteAll();
         userAchievementRepository.deleteAll();
@@ -65,9 +83,6 @@ class ExportControllerIT extends AbstractIntegrationTest {
         passwordResetTokenRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
-
-        ownerToken = register("Export Owner", "export-owner@example.com");
-        otherToken = register("Other User", "export-other@example.com");
     }
 
     @Test

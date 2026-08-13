@@ -24,6 +24,7 @@ import com.jobtracker.repository.UserInterviewMetricsRepository;
 import com.jobtracker.repository.UserRepository;
 import com.jobtracker.service.GoogleDriveApiClient;
 import com.jobtracker.service.export.ScheduledExportExecutor;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,18 +82,7 @@ class ExportSchedulerIT extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        ((RecordingDriveApiClient) googleDriveApiClient).reset();
-        exportExecutionRepository.deleteAll();
-        exportScheduleRepository.deleteAll();
-        googleDriveConnectionRepository.deleteAll();
-        userAchievementRepository.deleteAll();
-        interviewEventRepository.deleteAll();
-        userInterviewMetricsRepository.deleteAll();
-        userGamificationRepository.deleteAll();
-        applicationRepository.deleteAll();
-        passwordResetTokenRepository.deleteAll();
-        refreshTokenRepository.deleteAll();
-        userRepository.deleteAll();
+        clearDatabase();
 
         RegisterRequest register = new RegisterRequest(
                 "Scheduler Owner", "scheduler-owner@example.com", "pass1234", "pass1234", true);
@@ -107,6 +97,31 @@ class ExportSchedulerIT extends AbstractIntegrationTest {
 
         connectGoogleDrive();
         createApplication("Scheduled Vacancy");
+    }
+
+    /**
+     * Runs before and after every test: these classes create users, applications and a Google Drive
+     * connection, and the in-memory database is shared with every other test class, so leaving rows
+     * behind would break whichever class clears the users table next.
+     */
+    @AfterEach
+    void tearDown() {
+        clearDatabase();
+    }
+
+    private void clearDatabase() {
+        ((RecordingDriveApiClient) googleDriveApiClient).reset();
+        exportExecutionRepository.deleteAll();
+        exportScheduleRepository.deleteAll();
+        googleDriveConnectionRepository.deleteAll();
+        userAchievementRepository.deleteAll();
+        interviewEventRepository.deleteAll();
+        userInterviewMetricsRepository.deleteAll();
+        userGamificationRepository.deleteAll();
+        applicationRepository.deleteAll();
+        passwordResetTokenRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test
