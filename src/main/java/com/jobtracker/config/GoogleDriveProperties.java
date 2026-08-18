@@ -16,6 +16,7 @@ public class GoogleDriveProperties {
     private final String authorizationUri;
     private final String tokenUri;
     private final List<String> scopes;
+    private final long tokenRefreshSkewSeconds;
 
     public GoogleDriveProperties(
             @Value("${app.google-drive.client-id:}") String clientId,
@@ -24,7 +25,8 @@ public class GoogleDriveProperties {
             @Value("${app.google-drive.oauth-complete-url:}") String oauthCompleteUrl,
             @Value("${app.google-drive.authorization-uri:https://accounts.google.com/o/oauth2/v2/auth}") String authorizationUri,
             @Value("${app.google-drive.token-uri:https://oauth2.googleapis.com/token}") String tokenUri,
-            @Value("${app.google-drive.scopes:https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/documents.readonly}") String scopesValue
+            @Value("${app.google-drive.scopes:https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/documents.readonly}") String scopesValue,
+            @Value("${app.google-drive.token-refresh-skew-seconds:60}") long tokenRefreshSkewSeconds
     ) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
@@ -36,6 +38,7 @@ public class GoogleDriveProperties {
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .toList();
+        this.tokenRefreshSkewSeconds = tokenRefreshSkewSeconds;
     }
 
     public String getClientId() {
@@ -68,6 +71,11 @@ public class GoogleDriveProperties {
 
     public String getScopeValue() {
         return String.join(" ", scopes);
+    }
+
+    /** How far ahead of the stored expiry to proactively refresh the access token. */
+    public long getTokenRefreshSkewSeconds() {
+        return tokenRefreshSkewSeconds;
     }
 
     public boolean isConfigured() {

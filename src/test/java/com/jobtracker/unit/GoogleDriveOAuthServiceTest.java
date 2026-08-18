@@ -55,7 +55,8 @@ class GoogleDriveOAuthServiceTest {
                 "http://localhost:5173/settings/google-drive/callback",
                 "https://accounts.google.com/o/oauth2/v2/auth",
                 "https://oauth2.googleapis.com/token",
-                TEST_SCOPES
+                TEST_SCOPES,
+                60
         );
         oauthService = new GoogleDriveOAuthService(
                 googleDriveApiClient,

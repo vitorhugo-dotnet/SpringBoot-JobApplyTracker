@@ -6,11 +6,14 @@ import com.jobtracker.entity.User;
 import com.jobtracker.entity.enums.ExportDestinationType;
 import com.jobtracker.exception.BadRequestException;
 import com.jobtracker.service.GoogleDriveApiClient;
+import com.jobtracker.service.GoogleDriveCredentialService;
 import com.jobtracker.service.GoogleDriveService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+
+import java.util.UUID;
 
 /**
  * Stores scheduled exports in the user's own Google Drive, inside an exports folder under the
@@ -23,13 +26,16 @@ public class GoogleDriveExportDestination implements ExportDestination {
 
     private final GoogleDriveService googleDriveService;
     private final GoogleDriveApiClient googleDriveApiClient;
+    private final GoogleDriveCredentialService credentialService;
     private final ExportProperties properties;
 
     public GoogleDriveExportDestination(GoogleDriveService googleDriveService,
                                         GoogleDriveApiClient googleDriveApiClient,
+                                        GoogleDriveCredentialService credentialService,
                                         ExportProperties properties) {
         this.googleDriveService = googleDriveService;
         this.googleDriveApiClient = googleDriveApiClient;
+        this.credentialService = credentialService;
         this.properties = properties;
     }
 
@@ -40,21 +46,21 @@ public class GoogleDriveExportDestination implements ExportDestination {
 
     @Override
     public StoredExportFile store(User user, ExportFile file) {
-        GoogleDriveConnection connection = googleDriveService.getConnectionWithFreshAccessToken(user.getId());
+        UUID userId = user.getId();
+        GoogleDriveConnection connection = googleDriveService.getConnectionWithFreshAccessToken(userId);
         if (!StringUtils.hasText(connection.getRootFolderId())) {
             throw new BadRequestException(
                     "Configure a Google Drive root folder before scheduling exports to Google Drive");
         }
 
-        String accessToken = connection.getAccessToken();
+        String rootFolderId = connection.getRootFolderId();
         String exportsFolderName = properties.getDriveFolderName();
-        GoogleDriveApiClient.DriveFileMetadata exportsFolder = googleDriveApiClient
-                .findFolderByName(accessToken, connection.getRootFolderId(), exportsFolderName)
-                .orElseGet(() -> googleDriveApiClient.createFolder(
-                        accessToken, connection.getRootFolderId(), exportsFolderName));
+        GoogleDriveApiClient.DriveFileMetadata exportsFolder = credentialService.call(userId, token -> googleDriveApiClient
+                .findFolderByName(token, rootFolderId, exportsFolderName)
+                .orElseGet(() -> googleDriveApiClient.createFolder(token, rootFolderId, exportsFolderName)));
 
-        GoogleDriveApiClient.DriveFileMetadata uploaded = googleDriveApiClient.uploadFile(
-                accessToken, exportsFolder.id(), file.fileName(), file.format().getContentType(), file.content());
+        GoogleDriveApiClient.DriveFileMetadata uploaded = credentialService.call(userId, token -> googleDriveApiClient.uploadFile(
+                token, exportsFolder.id(), file.fileName(), file.format().getContentType(), file.content()));
 
         log.info("event=EXPORT_STORED destination=GOOGLE_DRIVE userId={} fileId={} records={}",
                 user.getId(), uploaded.id(), file.recordCount());

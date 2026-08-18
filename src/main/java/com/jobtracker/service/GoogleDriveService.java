@@ -27,6 +27,7 @@ import java.util.UUID;
 public class GoogleDriveService {
 
     private final GoogleDriveApiClient googleDriveApiClient;
+    private final GoogleDriveCredentialService credentialService;
     private final GoogleDriveProperties googleDriveProperties;
     private final GoogleDriveConnectionRepository connectionRepository;
     private final GoogleDriveBaseResumeRepository baseResumeRepository;
@@ -34,12 +35,14 @@ public class GoogleDriveService {
     private final SecurityUtils securityUtils;
 
     public GoogleDriveService(GoogleDriveApiClient googleDriveApiClient,
+                              GoogleDriveCredentialService credentialService,
                               GoogleDriveProperties googleDriveProperties,
                               GoogleDriveConnectionRepository connectionRepository,
                               GoogleDriveBaseResumeRepository baseResumeRepository,
                               ApplicationRepository applicationRepository,
                               SecurityUtils securityUtils) {
         this.googleDriveApiClient = googleDriveApiClient;
+        this.credentialService = credentialService;
         this.googleDriveProperties = googleDriveProperties;
         this.connectionRepository = connectionRepository;
         this.baseResumeRepository = baseResumeRepository;
@@ -63,10 +66,12 @@ public class GoogleDriveService {
 
     @Transactional
     public GoogleDriveStatusResponse updateRootFolder(GoogleDriveRootFolderRequest request) {
-        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        UUID userId = securityUtils.getCurrentUserId();
+        GoogleDriveConnection connection = credentialService.getValidCredentials(userId);
         String folderId = GoogleDriveFileIds.extract(request.folderIdOrUrl());
 
-        GoogleDriveApiClient.DriveFileMetadata folder = googleDriveApiClient.getFileMetadata(connection.getAccessToken(), folderId);
+        GoogleDriveApiClient.DriveFileMetadata folder = credentialService.call(userId,
+                token -> googleDriveApiClient.getFileMetadata(token, folderId));
         if (!GoogleDriveApiClient.GOOGLE_FOLDER_MIME_TYPE.equals(folder.mimeType())) {
             throw new BadRequestException("Configured root folder must be a Google Drive folder");
         }
@@ -79,10 +84,12 @@ public class GoogleDriveService {
 
     @Transactional
     public GoogleDriveBaseResumeResponse addBaseResume(GoogleDriveBaseResumeRequest request) {
-        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        UUID userId = securityUtils.getCurrentUserId();
+        GoogleDriveConnection connection = credentialService.getValidCredentials(userId);
         String documentId = GoogleDriveFileIds.extract(request.documentIdOrUrl());
 
-        GoogleDriveApiClient.DriveFileMetadata file = googleDriveApiClient.getFileMetadata(connection.getAccessToken(), documentId);
+        GoogleDriveApiClient.DriveFileMetadata file = credentialService.call(userId,
+                token -> googleDriveApiClient.getFileMetadata(token, documentId));
         if (!GoogleDriveApiClient.GOOGLE_DOC_MIME_TYPE.equals(file.mimeType()) &&
                 !GoogleDriveApiClient.PDF_MIME_TYPE.equals(file.mimeType())) {
             throw new BadRequestException("Only Google Docs documents and PDF files are supported as base resumes");
@@ -132,7 +139,7 @@ public class GoogleDriveService {
     @Transactional
     public GoogleDriveResumeCopyResponse copyBaseResumeToApplication(UUID applicationId, GoogleDriveResumeCopyRequest request) {
         UUID userId = securityUtils.getCurrentUserId();
-        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        GoogleDriveConnection connection = credentialService.getValidCredentials(userId);
         JobApplication application = applicationRepository.findByIdAndUserId(applicationId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
 
@@ -147,8 +154,8 @@ public class GoogleDriveService {
             throw new BadRequestException("Cannot copy a read-only PDF resume to an application. Use a Google Docs template instead.");
         }
 
-        GoogleDriveApiClient.DriveFileMetadata rootFolder =
-                googleDriveApiClient.getFileMetadata(connection.getAccessToken(), connection.getRootFolderId());
+        GoogleDriveApiClient.DriveFileMetadata rootFolder = credentialService.call(userId,
+                token -> googleDriveApiClient.getFileMetadata(token, connection.getRootFolderId()));
         if (!GoogleDriveApiClient.GOOGLE_FOLDER_MIME_TYPE.equals(rootFolder.mimeType())) {
             throw new BadRequestException("Configured root folder is no longer a valid Google Drive folder");
         }
@@ -157,15 +164,11 @@ public class GoogleDriveService {
         // Use the stored Drive folder ID for this application when available, so that renaming
         // the vacancy/organization after the first copy still resolves to the correct folder.
         GoogleDriveApiClient.DriveFileMetadata vacancyFolder =
-                resolveOrCreateVacancyFolder(connection, application, rootFolder.id(), userId);
+                resolveOrCreateVacancyFolder(userId, application, rootFolder.id());
 
         String copiedFileName = buildCopiedDocumentName(application, baseResume.getDocumentName());
-        GoogleDriveApiClient.DriveFileMetadata copiedFile = googleDriveApiClient.copyGoogleDoc(
-                connection.getAccessToken(),
-                baseResume.getGoogleFileId(),
-                vacancyFolder.id(),
-                copiedFileName
-        );
+        GoogleDriveApiClient.DriveFileMetadata copiedFile = credentialService.call(userId, token ->
+                googleDriveApiClient.copyGoogleDoc(token, baseResume.getGoogleFileId(), vacancyFolder.id(), copiedFileName));
         String copiedDocumentUrl = resolveDocumentLink(copiedFile);
         LocalDateTime generatedAt = LocalDateTime.now();
 
@@ -200,21 +203,21 @@ public class GoogleDriveService {
      * winner's ID instead.
      */
     private GoogleDriveApiClient.DriveFileMetadata resolveOrCreateVacancyFolder(
-            GoogleDriveConnection connection,
+            UUID userId,
             JobApplication application,
-            String rootFolderId,
-            UUID userId) {
+            String rootFolderId) {
 
         // Fast path: use the stored folder ID (handles renames and removes the need for a name search)
         if (StringUtils.hasText(application.getDriveVacancyFolderId())) {
-            return googleDriveApiClient.getFileMetadata(connection.getAccessToken(), application.getDriveVacancyFolderId());
+            return credentialService.call(userId,
+                    token -> googleDriveApiClient.getFileMetadata(token, application.getDriveVacancyFolderId()));
         }
 
         // Slow path: search by name then create if not found
         String vacancyFolderName = buildVacancyFolderName(application);
-        GoogleDriveApiClient.DriveFileMetadata folder = googleDriveApiClient
-                .findFolderByName(connection.getAccessToken(), rootFolderId, vacancyFolderName)
-                .orElseGet(() -> googleDriveApiClient.createFolder(connection.getAccessToken(), rootFolderId, vacancyFolderName));
+        GoogleDriveApiClient.DriveFileMetadata folder = credentialService.call(userId, token ->
+                googleDriveApiClient.findFolderByName(token, rootFolderId, vacancyFolderName)
+                        .orElseGet(() -> googleDriveApiClient.createFolder(token, rootFolderId, vacancyFolderName)));
 
         // Attempt to atomically record the resolved folder ID; if a concurrent request beat us,
         // fetch the winning ID from the DB and use that folder instead.
@@ -225,42 +228,19 @@ public class GoogleDriveService {
                     .filter(StringUtils::hasText)
                     .orElse(folder.id()); // concurrent tx hasn't committed yet; use our own folder this time
             if (!winningFolderId.equals(folder.id())) {
-                folder = googleDriveApiClient.getFileMetadata(connection.getAccessToken(), winningFolderId);
+                folder = credentialService.call(userId, token -> googleDriveApiClient.getFileMetadata(token, winningFolderId));
             }
         }
 
         return folder;
     }
 
-    private GoogleDriveConnection getConnectionWithFreshAccessToken() {
-        return getConnectionWithFreshAccessToken(securityUtils.getCurrentUserId());
-    }
-
     /**
      * Same as the request-scoped lookup, but for an explicit user — used by background jobs such as
      * scheduled exports, which run without a {@code SecurityContext}.
      */
-    @Transactional
     public GoogleDriveConnection getConnectionWithFreshAccessToken(UUID userId) {
-        requireServerConfigured();
-        GoogleDriveConnection connection = connectionRepository.findByUserId(userId)
-                .orElseThrow(() -> new BadRequestException("Google Drive is not connected for the current user"));
-        return refreshAccessTokenIfNeeded(connection);
-    }
-
-    private GoogleDriveConnection refreshAccessTokenIfNeeded(GoogleDriveConnection connection) {
-        if (connection.getAccessTokenExpiresAt() != null
-                && connection.getAccessTokenExpiresAt().isAfter(LocalDateTime.now().plusMinutes(1))) {
-            return connection;
-        }
-
-        GoogleDriveApiClient.OAuthTokens refreshed = googleDriveApiClient.refreshAccessToken(connection.getRefreshToken());
-        connection.setAccessToken(refreshed.accessToken());
-        connection.setAccessTokenExpiresAt(refreshed.accessTokenExpiresAt());
-        if (StringUtils.hasText(refreshed.scope())) {
-            connection.setGrantedScopes(refreshed.scope());
-        }
-        return connectionRepository.save(connection);
+        return credentialService.getValidCredentials(userId);
     }
 
     private GoogleDriveStatusResponse toStatusResponse(GoogleDriveConnection connection) {
@@ -302,12 +282,6 @@ public class GoogleDriveService {
                 resume.isReadOnly(),
                 resume.getCreatedAt()
         );
-    }
-
-    private void requireServerConfigured() {
-        if (!googleDriveProperties.isConfigured()) {
-            throw new BadRequestException("Google Drive integration is not configured on the server");
-        }
     }
 
     private String buildVacancyFolderName(JobApplication application) {

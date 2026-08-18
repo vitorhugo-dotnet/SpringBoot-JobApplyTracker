@@ -10,6 +10,9 @@ import com.jobtracker.entity.JobApplication;
 import com.jobtracker.entity.Role;
 import com.jobtracker.entity.User;
 import com.jobtracker.entity.enums.RoleName;
+import com.jobtracker.exception.BadRequestException;
+import com.jobtracker.exception.GoogleAuthenticationException;
+import com.jobtracker.exception.ServiceUnavailableException;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.GoogleDriveBaseInformationRepository;
 import com.jobtracker.repository.GoogleDriveBaseResumeRepository;
@@ -643,6 +646,152 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
         assertThat(googleDriveBaseInformationRepository.findAll()).isEmpty();
     }
 
+    // ── Google OAuth token resilience (issue #77) ───────────────────────────
+
+    @Test
+    void updateRootFolder_shouldTransparentlyRefreshExpiredAccessToken() throws Exception {
+        GoogleDriveConnection connection = buildConnection();
+        connection.setAccessTokenExpiresAt(LocalDateTime.now().minusMinutes(5));
+        googleDriveConnectionRepository.save(connection);
+        googleDriveApiClient.fileMetadataById.put("folder-123",
+                new GoogleDriveApiClient.DriveFileMetadata(
+                        "folder-123", "Root Folder", GoogleDriveApiClient.GOOGLE_FOLDER_MIME_TYPE,
+                        "https://drive.google.com/drive/folders/folder-123"));
+
+        mockMvc.perform(put("/api/v1/google-drive/root-folder")
+                        .header("Authorization", "Bearer " + betaAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"folderIdOrUrl\":\"folder-123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rootFolderId").value("folder-123"));
+
+        assertThat(googleDriveApiClient.getRefreshInvocationCount()).isEqualTo(1);
+        GoogleDriveConnection persisted = googleDriveConnectionRepository.findAll().getFirst();
+        assertThat(persisted.getAccessToken()).isEqualTo("refreshed-access-1");
+        assertThat(persisted.getAccessTokenExpiresAt()).isAfter(LocalDateTime.now());
+    }
+
+    @Test
+    void generateResume_shouldSucceedAfterAccessTokenExpiresAndRefreshTokenIsStillValid() throws Exception {
+        GoogleDriveConnection connection = buildConnectionWithRootFolder();
+        connection.setAccessTokenExpiresAt(LocalDateTime.now().minusMinutes(5));
+        connection = googleDriveConnectionRepository.save(connection);
+        GoogleDriveBaseResume resume = buildBaseResume(connection);
+        googleDriveBaseResumeRepository.save(resume);
+        googleDriveApiClient.setDocumentText("resume-file-id", "{{SUMMARY}}");
+
+        JobApplication application = new JobApplication();
+        application.setUser(userRepository.findByEmail("driveuser@example.com").orElseThrow());
+        application.setVacancyName("Backend Engineer");
+        application.setOrganization("Acme");
+        application.setApplicationDate(LocalDate.now());
+        application = applicationRepository.save(application);
+        googleDriveApiClient.fileMetadataById.put("root-folder-id",
+                new GoogleDriveApiClient.DriveFileMetadata(
+                        "root-folder-id", "Job Tracker Root", GoogleDriveApiClient.GOOGLE_FOLDER_MIME_TYPE,
+                        "https://drive.google.com/drive/folders/root-folder-id"));
+
+        mockMvc.perform(post("/api/v1/google-drive/applications/" + application.getId() + "/generated-resumes")
+                        .header("Authorization", "Bearer " + betaAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "baseResumeId": "%s",
+                                  "values": { "SUMMARY": "Senior Java Engineer" }
+                                }
+                                """.formatted(resume.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.values.SUMMARY").value("Senior Java Engineer"));
+
+        // Proactive refresh happens once up front for the whole request, not once per Drive call.
+        assertThat(googleDriveApiClient.getRefreshInvocationCount()).isEqualTo(1);
+    }
+
+    @Test
+    void updateRootFolder_shouldRefreshAndRetryOnce_whenGoogleUnexpectedlyReturns401() throws Exception {
+        googleDriveConnectionRepository.save(buildConnection());
+        googleDriveApiClient.fileMetadataById.put("folder-123",
+                new GoogleDriveApiClient.DriveFileMetadata(
+                        "folder-123", "Root Folder", GoogleDriveApiClient.GOOGLE_FOLDER_MIME_TYPE,
+                        "https://drive.google.com/drive/folders/folder-123"));
+        googleDriveApiClient.failNextCallsWithUnauthorized(1);
+
+        mockMvc.perform(put("/api/v1/google-drive/root-folder")
+                        .header("Authorization", "Bearer " + betaAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"folderIdOrUrl\":\"folder-123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rootFolderId").value("folder-123"));
+
+        assertThat(googleDriveApiClient.getRefreshInvocationCount()).isEqualTo(1);
+    }
+
+    @Test
+    void updateRootFolder_shouldFailWithoutLooping_whenGoogleKeepsReturning401AfterRefresh() throws Exception {
+        googleDriveConnectionRepository.save(buildConnection());
+        googleDriveApiClient.fileMetadataById.put("folder-123",
+                new GoogleDriveApiClient.DriveFileMetadata(
+                        "folder-123", "Root Folder", GoogleDriveApiClient.GOOGLE_FOLDER_MIME_TYPE,
+                        "https://drive.google.com/drive/folders/folder-123"));
+        googleDriveApiClient.failNextCallsWithUnauthorized(2);
+
+        mockMvc.perform(put("/api/v1/google-drive/root-folder")
+                        .header("Authorization", "Bearer " + betaAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"folderIdOrUrl\":\"folder-123\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("GOOGLE_ACCESS_TOKEN_REFRESH_FAILED"));
+
+        // Exactly one refresh attempt: the guarded retry does not turn into a retry loop.
+        assertThat(googleDriveApiClient.getRefreshInvocationCount()).isEqualTo(1);
+    }
+
+    @Test
+    void updateRootFolder_shouldReturnDeterministicReauthorizationResponse_whenRefreshTokenIsRevoked() throws Exception {
+        GoogleDriveConnection connection = buildConnection();
+        connection.setAccessTokenExpiresAt(LocalDateTime.now().minusMinutes(5));
+        connection = googleDriveConnectionRepository.save(connection);
+        googleDriveApiClient.failNextRefreshWithInvalidGrant();
+
+        mockMvc.perform(put("/api/v1/google-drive/root-folder")
+                        .header("Authorization", "Bearer " + betaAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"folderIdOrUrl\":\"folder-123\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GOOGLE_REAUTHORIZATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("invalid_grant"))));
+
+        GoogleDriveConnection persisted = googleDriveConnectionRepository.findByUserId(connection.getUser().getId()).orElseThrow();
+        assertThat(persisted.isReauthorizationRequired()).isTrue();
+
+        // A second request must not hammer Google's token endpoint again: it fails fast instead.
+        mockMvc.perform(put("/api/v1/google-drive/root-folder")
+                        .header("Authorization", "Bearer " + betaAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"folderIdOrUrl\":\"folder-123\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("GOOGLE_REAUTHORIZATION_REQUIRED"));
+        assertThat(googleDriveApiClient.getRefreshInvocationCount()).isEqualTo(1);
+    }
+
+    @Test
+    void updateRootFolder_shouldReturnTransientFailure_withoutMarkingConnectionRevoked() throws Exception {
+        GoogleDriveConnection connection = buildConnection();
+        connection.setAccessTokenExpiresAt(LocalDateTime.now().minusMinutes(5));
+        connection = googleDriveConnectionRepository.save(connection);
+        googleDriveApiClient.failNextRefreshTransiently();
+
+        mockMvc.perform(put("/api/v1/google-drive/root-folder")
+                        .header("Authorization", "Bearer " + betaAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"folderIdOrUrl\":\"folder-123\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("GOOGLE_ACCESS_TOKEN_REFRESH_FAILED"));
+
+        GoogleDriveConnection persisted = googleDriveConnectionRepository.findByUserId(connection.getUser().getId()).orElseThrow();
+        assertThat(persisted.isReauthorizationRequired()).isFalse();
+    }
+
     private GoogleDriveConnection buildConnectionWithRootFolder() {
         GoogleDriveConnection connection = buildConnection();
         connection.setRootFolderId("root-folder-id");
@@ -697,12 +846,21 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
         private final Map<String, String> documentTextById = new HashMap<>();
         private final Map<String, byte[]> fileBytesById = new HashMap<>();
 
+        private int unauthorizedFailuresRemaining = 0;
+        private int refreshInvocationCount = 0;
+        private boolean refreshShouldFailWithInvalidGrant = false;
+        private boolean refreshShouldFailTransiently = false;
+
         void reset() {
             fileMetadataById.clear();
             documentTextById.clear();
             fileBytesById.clear();
             documentTextById.put("resume-file-id", DEFAULT_TEMPLATE_TEXT);
             documentTextById.put("copied-file", DEFAULT_TEMPLATE_TEXT);
+            unauthorizedFailuresRemaining = 0;
+            refreshInvocationCount = 0;
+            refreshShouldFailWithInvalidGrant = false;
+            refreshShouldFailTransiently = false;
         }
 
         void setDocumentText(String documentId, String text) {
@@ -711,6 +869,32 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
 
         void setFileBytes(String fileId, byte[] bytes) {
             fileBytesById.put(fileId, bytes);
+        }
+
+        /** Makes the next {@code times} Drive/Docs calls fail with a simulated 401. */
+        void failNextCallsWithUnauthorized(int times) {
+            this.unauthorizedFailuresRemaining = times;
+        }
+
+        /** Makes the next token refresh fail as an unrecoverable grant (Google's {@code invalid_grant}). */
+        void failNextRefreshWithInvalidGrant() {
+            this.refreshShouldFailWithInvalidGrant = true;
+        }
+
+        /** Makes the next token refresh fail as a transient provider/network error. */
+        void failNextRefreshTransiently() {
+            this.refreshShouldFailTransiently = true;
+        }
+
+        int getRefreshInvocationCount() {
+            return refreshInvocationCount;
+        }
+
+        private void maybeThrowUnauthorized() {
+            if (unauthorizedFailuresRemaining > 0) {
+                unauthorizedFailuresRemaining--;
+                throw new GoogleAuthenticationException("Simulated 401 from Google Drive");
+            }
         }
 
         @Override
@@ -725,6 +909,18 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
 
         @Override
         public OAuthTokens refreshAccessToken(String refreshToken) {
+            refreshInvocationCount++;
+            if (refreshShouldFailWithInvalidGrant) {
+                throw new BadRequestException("Google OAuth error during refresh access token: invalid_grant");
+            }
+            if (refreshShouldFailTransiently) {
+                throw new ServiceUnavailableException("Google OAuth service unavailable during refresh access token");
+            }
+            tokens = new OAuthTokens(
+                    "refreshed-access-" + refreshInvocationCount,
+                    refreshToken,
+                    LocalDateTime.now().plusHours(1),
+                    tokens.scope());
             return tokens;
         }
 
@@ -735,6 +931,7 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
 
         @Override
         public DriveFileMetadata getFileMetadata(String accessToken, String fileId) {
+            maybeThrowUnauthorized();
             return fileMetadataById.get(fileId);
         }
 
@@ -786,6 +983,12 @@ class GoogleDriveControllerIT extends AbstractIntegrationTest {
         @Override
         public byte[] downloadFileBytes(String accessToken, String fileId) {
             return fileBytesById.getOrDefault(fileId, new byte[0]);
+        }
+
+        @Override
+        public byte[] exportDocument(String accessToken, String documentId, String mimeType) {
+            String text = documentTextById.getOrDefault(documentId, DEFAULT_TEMPLATE_TEXT);
+            return text.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         }
 
         @Override

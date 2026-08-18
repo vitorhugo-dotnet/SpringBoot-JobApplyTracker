@@ -67,6 +67,17 @@ public class GoogleDriveConnection {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    /**
+     * Set only when a token refresh attempt proves the stored refresh token can no longer be
+     * used (e.g. Google returned {@code invalid_grant}), so callers stop retrying refreshes and
+     * surface a reauthorization prompt instead. Cleared automatically on successful reconnect.
+     */
+    @Column(name = "reauthorization_required", nullable = false)
+    private boolean reauthorizationRequired = false;
+
+    @Column(name = "reauthorization_reason", length = 255)
+    private String reauthorizationReason;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -199,5 +210,21 @@ public class GoogleDriveConnection {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public boolean isReauthorizationRequired() {
+        return reauthorizationRequired;
+    }
+
+    public void setReauthorizationRequired(boolean reauthorizationRequired) {
+        this.reauthorizationRequired = reauthorizationRequired;
+    }
+
+    public String getReauthorizationReason() {
+        return reauthorizationReason;
+    }
+
+    public void setReauthorizationReason(String reauthorizationReason) {
+        this.reauthorizationReason = reauthorizationReason;
     }
 }

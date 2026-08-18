@@ -112,6 +112,8 @@ public class GoogleDriveOAuthService {
             connection.setGrantedScopes(tokens.scope() == null || tokens.scope().isBlank()
                     ? googleDriveProperties.getScopeValue() : tokens.scope());
             connection.setConnectedAt(LocalDateTime.now());
+            connection.setReauthorizationRequired(false);
+            connection.setReauthorizationReason(null);
             if (accountChanged) {
                 connection.setRootFolderId(null);
                 connection.setRootFolderName(null);
