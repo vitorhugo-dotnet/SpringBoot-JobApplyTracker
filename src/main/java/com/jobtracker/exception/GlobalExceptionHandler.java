@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException ex) {
         log.warn("event=UNAUTHORIZED message={}", ex.getMessage());
-        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), codeOf(ex));
     }
 
     @ExceptionHandler(ConflictException.class)
@@ -54,7 +54,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ServiceUnavailableException.class)
     public ResponseEntity<Map<String, Object>> handleServiceUnavailable(ServiceUnavailableException ex) {
         log.warn("event=SERVICE_UNAVAILABLE message={}", ex.getMessage());
-        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), codeOf(ex));
     }
 
     @ExceptionHandler({BadCredentialsException.class, AuthenticationException.class})
@@ -124,12 +124,23 @@ public class GlobalExceptionHandler {
         return null; // No body since the client has disconnected
     }
 
+    private String codeOf(Exception ex) {
+        return ex instanceof CodedException coded ? coded.getCode() : null;
+    }
+
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
+        return buildResponse(status, message, null);
+    }
+
+    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message, String code) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now().toString());
         body.put("status", status.value());
         body.put("error", status.getReasonPhrase());
         body.put("message", message);
+        if (code != null) {
+            body.put("code", code);
+        }
         return ResponseEntity.status(status).body(body);
     }
 }

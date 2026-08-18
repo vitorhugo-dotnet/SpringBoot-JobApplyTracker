@@ -11,6 +11,7 @@ import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.User;
 import com.jobtracker.config.GoogleDriveProperties;
 import com.jobtracker.exception.BadRequestException;
+import com.jobtracker.exception.GoogleAuthenticationException;
 import com.jobtracker.exception.ServiceUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -309,6 +310,15 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
         });
     }
 
+    @Override
+    public byte[] exportDocument(String accessToken, String documentId, String mimeType) {
+        return executeDriveOp(accessToken, "export document", drive -> {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            drive.files().export(documentId, mimeType).executeMediaAndDownloadTo(outputStream);
+            return outputStream.toByteArray();
+        });
+    }
+
     // ── internal helpers ─────────────────────────────────────────────────────
 
     @FunctionalInterface
@@ -356,6 +366,10 @@ public class SdkGoogleDriveApiClient implements GoogleDriveApiClient {
 
         if (status == 429 || status >= 500) {
             return new ServiceUnavailableException(message);
+        }
+
+        if (status == 401) {
+            return new GoogleAuthenticationException(message);
         }
 
         return new BadRequestException(message);

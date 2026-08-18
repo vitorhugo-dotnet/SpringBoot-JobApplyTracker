@@ -88,6 +88,11 @@ public class RecordingDriveApiClient implements GoogleDriveApiClient {
     }
 
     @Override
+    public byte[] exportDocument(String accessToken, String documentId, String mimeType) {
+        return new byte[0];
+    }
+
+    @Override
     public DriveFileMetadata uploadFile(String accessToken, String parentFolderId, String fileName,
                                         String mimeType, byte[] content) {
         String folderName = foldersByName.values().stream()

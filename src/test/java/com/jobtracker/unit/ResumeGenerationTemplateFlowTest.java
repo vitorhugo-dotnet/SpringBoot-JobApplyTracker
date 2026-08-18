@@ -10,6 +10,8 @@ import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.GoogleDriveBaseResumeRepository;
 import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.service.GoogleDriveApiClient;
+import com.jobtracker.service.GoogleDriveConnectionStateWriter;
+import com.jobtracker.service.GoogleDriveCredentialService;
 import com.jobtracker.service.ResumeGenerationService;
 import com.jobtracker.util.SecurityUtils;
 import org.junit.jupiter.api.Test;
@@ -48,17 +50,20 @@ class ResumeGenerationTemplateFlowTest {
 
     @Test
     void generateResume_shouldReplaceStrictPlaceholdersFromProvidedValues() {
+        GoogleDriveProperties googleDriveProperties = new GoogleDriveProperties(
+                "client",
+                "secret",
+                "cb",
+                "frontend",
+                "auth",
+                "token",
+                TEST_SCOPES,
+                60
+        );
         ResumeGenerationService service = new ResumeGenerationService(
                 googleDriveApiClient,
-                new GoogleDriveProperties(
-                        "client",
-                        "secret",
-                        "cb",
-                        "frontend",
-                        "auth",
-                        "token",
-                        TEST_SCOPES
-                ),
+                new GoogleDriveCredentialService(googleDriveApiClient, googleDriveProperties, connectionRepository,
+                        new GoogleDriveConnectionStateWriter(connectionRepository)),
                 connectionRepository,
                 baseResumeRepository,
                 applicationRepository,

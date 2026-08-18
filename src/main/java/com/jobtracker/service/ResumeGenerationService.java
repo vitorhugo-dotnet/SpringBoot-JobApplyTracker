@@ -1,6 +1,5 @@
 package com.jobtracker.service;
 
-import com.jobtracker.config.GoogleDriveProperties;
 import com.jobtracker.dto.gdrive.BaseResumeContentResponse;
 import com.jobtracker.dto.gdrive.ResumePlaceholderDetectionResponse;
 import com.jobtracker.dto.gdrive.ResumePlaceholderRequest;
@@ -36,20 +35,20 @@ public class ResumeGenerationService {
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{(.*?)}}");
 
     private final GoogleDriveApiClient googleDriveApiClient;
-    private final GoogleDriveProperties googleDriveProperties;
+    private final GoogleDriveCredentialService credentialService;
     private final GoogleDriveConnectionRepository connectionRepository;
     private final GoogleDriveBaseResumeRepository baseResumeRepository;
     private final ApplicationRepository applicationRepository;
     private final SecurityUtils securityUtils;
 
     public ResumeGenerationService(GoogleDriveApiClient googleDriveApiClient,
-                                   GoogleDriveProperties googleDriveProperties,
+                                   GoogleDriveCredentialService credentialService,
                                    GoogleDriveConnectionRepository connectionRepository,
                                    GoogleDriveBaseResumeRepository baseResumeRepository,
                                    ApplicationRepository applicationRepository,
                                    SecurityUtils securityUtils) {
         this.googleDriveApiClient = googleDriveApiClient;
-        this.googleDriveProperties = googleDriveProperties;
+        this.credentialService = credentialService;
         this.connectionRepository = connectionRepository;
         this.baseResumeRepository = baseResumeRepository;
         this.applicationRepository = applicationRepository;
@@ -59,14 +58,15 @@ public class ResumeGenerationService {
     @Transactional
     public ResumePlaceholderDetectionResponse detectPlaceholders(UUID baseResumeId) {
         UUID userId = securityUtils.getCurrentUserId();
-        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        credentialService.getValidCredentials(userId);
         GoogleDriveBaseResume baseResume = getBaseResume(baseResumeId, userId);
 
         if (baseResume.isReadOnly()) {
             throw new BadRequestException("Cannot detect placeholders in a read-only PDF resume");
         }
 
-        String documentText = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), baseResume.getGoogleFileId());
+        String documentText = credentialService.call(userId,
+                token -> googleDriveApiClient.readGoogleDocText(token, baseResume.getGoogleFileId()));
 
         return new ResumePlaceholderDetectionResponse(
                 baseResume.getId(),
@@ -77,18 +77,19 @@ public class ResumeGenerationService {
     @Transactional
     public BaseResumeContentResponse getBaseResumeContent(UUID resumeId) {
         UUID userId = securityUtils.getCurrentUserId();
-        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        credentialService.getValidCredentials(userId);
         GoogleDriveBaseResume baseResume = getBaseResume(resumeId, userId);
 
         String content;
         if (baseResume.isReadOnly()) {
-            byte[] pdfBytes = googleDriveApiClient.downloadFileBytes(connection.getAccessToken(), baseResume.getGoogleFileId());
+            byte[] pdfBytes = credentialService.call(userId,
+                    token -> googleDriveApiClient.downloadFileBytes(token, baseResume.getGoogleFileId()));
             content = extractTextFromPdf(pdfBytes);
         } else {
-            content = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), baseResume.getGoogleFileId());
+            content = credentialService.call(userId,
+                    token -> googleDriveApiClient.readGoogleDocText(token, baseResume.getGoogleFileId()));
         }
 
-        connectionRepository.save(connection);
         return new BaseResumeContentResponse(
                 baseResume.getId(),
                 baseResume.getDocumentName(),
@@ -102,7 +103,7 @@ public class ResumeGenerationService {
     @Transactional
     public GeneratedResumeContentResponse getGeneratedResumeContent(UUID applicationId) {
         UUID userId = securityUtils.getCurrentUserId();
-        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        credentialService.getValidCredentials(userId);
         JobApplication application = applicationRepository.findByIdAndUserId(applicationId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
 
@@ -110,8 +111,8 @@ public class ResumeGenerationService {
             throw new BadRequestException("No generated resume found for this application");
         }
 
-        String content = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), application.getDriveResumeFileId());
-        connectionRepository.save(connection);
+        String content = credentialService.call(userId,
+                token -> googleDriveApiClient.readGoogleDocText(token, application.getDriveResumeFileId()));
 
         return new GeneratedResumeContentResponse(
                 application.getId(),
@@ -124,7 +125,7 @@ public class ResumeGenerationService {
     @Transactional
     public ResumePlaceholderResponse generateTemplateResume(UUID applicationId, ResumePlaceholderRequest request) {
         UUID userId = securityUtils.getCurrentUserId();
-        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        GoogleDriveConnection connection = credentialService.getValidCredentials(userId);
         JobApplication application = applicationRepository.findByIdAndUserId(applicationId, userId).orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
         GoogleDriveBaseResume baseResume = getBaseResume(request.baseResumeId(), userId);
 
@@ -136,36 +137,32 @@ public class ResumeGenerationService {
             throw new BadRequestException("Configure a Google Drive root folder before generating resumes");
         }
 
-        GoogleDriveApiClient.DriveFileMetadata rootFolder =
-                googleDriveApiClient.getFileMetadata(connection.getAccessToken(), connection.getRootFolderId());
+        GoogleDriveApiClient.DriveFileMetadata rootFolder = credentialService.call(userId,
+                token -> googleDriveApiClient.getFileMetadata(token, connection.getRootFolderId()));
         if (!GoogleDriveApiClient.GOOGLE_FOLDER_MIME_TYPE.equals(rootFolder.mimeType())) {
             throw new BadRequestException("Configured root folder is no longer a valid Google Drive folder");
         }
         connection.setRootFolderName(rootFolder.name());
 
-        GoogleDriveApiClient.DriveFileMetadata vacancyFolder = resolveOrCreateVacancyFolder(connection, application, rootFolder.id(), userId);
+        GoogleDriveApiClient.DriveFileMetadata vacancyFolder = resolveOrCreateVacancyFolder(userId, application, rootFolder.id());
 
         String copiedFileName = buildCopiedDocumentName(application, baseResume.getDocumentName());
-        GoogleDriveApiClient.DriveFileMetadata copiedFile = googleDriveApiClient.copyGoogleDoc(
-                connection.getAccessToken(),
-                baseResume.getGoogleFileId(),
-                vacancyFolder.id(),
-                copiedFileName
-        );
+        GoogleDriveApiClient.DriveFileMetadata copiedFile = credentialService.call(userId, token ->
+                googleDriveApiClient.copyGoogleDoc(token, baseResume.getGoogleFileId(), vacancyFolder.id(), copiedFileName));
 
         Map<String, String> values = request.values() == null ? Map.of() : request.values();
-        googleDriveApiClient.replaceGoogleDocPlaceholders(connection.getAccessToken(), copiedFile.id(), values);
+        credentialService.call(userId, token -> {
+            googleDriveApiClient.replaceGoogleDocPlaceholders(token, copiedFile.id(), values);
+            return null;
+        });
 
         String copiedDocumentUrl = resolveDocumentLink(copiedFile);
-        String copiedText = googleDriveApiClient.readGoogleDocText(connection.getAccessToken(), copiedFile.id());
+        String copiedText = credentialService.call(userId,
+                token -> googleDriveApiClient.readGoogleDocText(token, copiedFile.id()));
         List<String> remainingPlaceholders = detectPlaceholders(copiedText);
         String pdfName = truncateFileName(sanitizeFileName(stripGoogleDocExtension(copiedFile.name()) + ".pdf"), 220);
-        GoogleDriveApiClient.DriveFileMetadata pdfFile = googleDriveApiClient.exportGoogleDocAsPdf(
-                connection.getAccessToken(),
-                copiedFile.id(),
-                vacancyFolder.id(),
-                pdfName
-        );
+        GoogleDriveApiClient.DriveFileMetadata pdfFile = credentialService.call(userId, token ->
+                googleDriveApiClient.exportGoogleDocAsPdf(token, copiedFile.id(), vacancyFolder.id(), pdfName));
         LocalDateTime generatedAt = LocalDateTime.now();
         String pdfUrl = resolveDocumentLink(pdfFile);
 
@@ -274,44 +271,20 @@ public class ResumeGenerationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Base resume not found with id: " + baseResumeId));
     }
 
-    private GoogleDriveConnection getConnectionWithFreshAccessToken() {
-        if (!googleDriveProperties.isConfigured()) {
-            throw new BadRequestException("Google Drive integration is not configured on the server");
-        }
-        GoogleDriveConnection connection = connectionRepository.findByUserId(securityUtils.getCurrentUserId())
-                .orElseThrow(() -> new BadRequestException("Google Drive is not connected for the current user"));
-        return refreshAccessTokenIfNeeded(connection);
-    }
-
-    private GoogleDriveConnection refreshAccessTokenIfNeeded(GoogleDriveConnection connection) {
-        if (connection.getAccessTokenExpiresAt() != null
-                && connection.getAccessTokenExpiresAt().isAfter(LocalDateTime.now().plusMinutes(1))) {
-            return connection;
-        }
-
-        GoogleDriveApiClient.OAuthTokens refreshed = googleDriveApiClient.refreshAccessToken(connection.getRefreshToken());
-        connection.setAccessToken(refreshed.accessToken());
-        connection.setAccessTokenExpiresAt(refreshed.accessTokenExpiresAt());
-        if (StringUtils.hasText(refreshed.scope())) {
-            connection.setGrantedScopes(refreshed.scope());
-        }
-        return connectionRepository.save(connection);
-    }
-
     private GoogleDriveApiClient.DriveFileMetadata resolveOrCreateVacancyFolder(
-            GoogleDriveConnection connection,
+            UUID userId,
             JobApplication application,
-            String rootFolderId,
-            UUID userId) {
+            String rootFolderId) {
 
         if (StringUtils.hasText(application.getDriveVacancyFolderId())) {
-            return googleDriveApiClient.getFileMetadata(connection.getAccessToken(), application.getDriveVacancyFolderId());
+            return credentialService.call(userId,
+                    token -> googleDriveApiClient.getFileMetadata(token, application.getDriveVacancyFolderId()));
         }
 
         String vacancyFolderName = buildVacancyFolderName(application);
-        GoogleDriveApiClient.DriveFileMetadata folder = googleDriveApiClient
-                .findFolderByName(connection.getAccessToken(), rootFolderId, vacancyFolderName)
-                .orElseGet(() -> googleDriveApiClient.createFolder(connection.getAccessToken(), rootFolderId, vacancyFolderName));
+        GoogleDriveApiClient.DriveFileMetadata folder = credentialService.call(userId, token ->
+                googleDriveApiClient.findFolderByName(token, rootFolderId, vacancyFolderName)
+                        .orElseGet(() -> googleDriveApiClient.createFolder(token, rootFolderId, vacancyFolderName)));
 
         int updated = applicationRepository.setDriveVacancyFolderIdIfAbsent(application.getId(), folder.id());
         if (updated == 0) {
@@ -320,7 +293,7 @@ public class ResumeGenerationService {
                     .filter(StringUtils::hasText)
                     .orElse(folder.id());
             if (!winningFolderId.equals(folder.id())) {
-                folder = googleDriveApiClient.getFileMetadata(connection.getAccessToken(), winningFolderId);
+                folder = credentialService.call(userId, token -> googleDriveApiClient.getFileMetadata(token, winningFolderId));
             }
         }
 

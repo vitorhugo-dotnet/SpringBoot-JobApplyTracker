@@ -36,6 +36,9 @@ public interface GoogleDriveApiClient {
 
     byte[] downloadFileBytes(String accessToken, String fileId);
 
+    /** Exports a Drive file (typically a Google Doc) as {@code mimeType} and returns the raw bytes. */
+    byte[] exportDocument(String accessToken, String documentId, String mimeType);
+
     /** Uploads raw bytes as a new file in {@code parentFolderId}. */
     DriveFileMetadata uploadFile(String accessToken, String parentFolderId, String fileName,
                                  String mimeType, byte[] content);

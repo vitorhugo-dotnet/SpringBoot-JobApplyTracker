@@ -1,7 +1,5 @@
 package com.jobtracker.service;
 
-import com.google.api.services.drive.Drive;
-import com.jobtracker.config.GoogleDriveProperties;
 import com.jobtracker.entity.GoogleDriveBaseResume;
 import com.jobtracker.entity.GoogleDriveConnection;
 import com.jobtracker.entity.JobApplication;
@@ -9,46 +7,32 @@ import com.jobtracker.exception.BadRequestException;
 import com.jobtracker.exception.ResourceNotFoundException;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.GoogleDriveBaseResumeRepository;
-import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.util.SecurityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
 public class GoogleDriveGeneratedResumeDownloadService {
 
-    private static final Logger log = LoggerFactory.getLogger(GoogleDriveGeneratedResumeDownloadService.class);
-
     private static final String DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     private static final String PDF_MIME_TYPE = "application/pdf";
 
-    private final DriveClientFactory driveClientFactory;
     private final GoogleDriveApiClient googleDriveApiClient;
-    private final GoogleDriveProperties googleDriveProperties;
-    private final GoogleDriveConnectionRepository connectionRepository;
+    private final GoogleDriveCredentialService credentialService;
     private final GoogleDriveBaseResumeRepository baseResumeRepository;
     private final ApplicationRepository applicationRepository;
     private final SecurityUtils securityUtils;
 
-    public GoogleDriveGeneratedResumeDownloadService(DriveClientFactory driveClientFactory,
-                                                     GoogleDriveApiClient googleDriveApiClient,
-                                                     GoogleDriveProperties googleDriveProperties,
-                                                     GoogleDriveConnectionRepository connectionRepository,
+    public GoogleDriveGeneratedResumeDownloadService(GoogleDriveApiClient googleDriveApiClient,
+                                                     GoogleDriveCredentialService credentialService,
                                                      GoogleDriveBaseResumeRepository baseResumeRepository,
                                                      ApplicationRepository applicationRepository,
                                                      SecurityUtils securityUtils) {
-        this.driveClientFactory = driveClientFactory;
         this.googleDriveApiClient = googleDriveApiClient;
-        this.googleDriveProperties = googleDriveProperties;
-        this.connectionRepository = connectionRepository;
+        this.credentialService = credentialService;
         this.baseResumeRepository = baseResumeRepository;
         this.applicationRepository = applicationRepository;
         this.securityUtils = securityUtils;
@@ -76,7 +60,7 @@ public class GoogleDriveGeneratedResumeDownloadService {
 
     private DownloadedFile downloadApplication(UUID applicationId, String exportMimeType, String extension) {
         UUID userId = securityUtils.getCurrentUserId();
-        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        credentialService.getValidCredentials(userId);
         JobApplication application = applicationRepository.findByIdAndUserId(applicationId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + applicationId));
 
@@ -84,7 +68,8 @@ public class GoogleDriveGeneratedResumeDownloadService {
             throw new BadRequestException("Generate a resume first before downloading it");
         }
 
-        byte[] content = exportDocument(connection.getAccessToken(), application.getDriveResumeFileId(), exportMimeType);
+        byte[] content = credentialService.call(userId,
+                token -> googleDriveApiClient.exportDocument(token, application.getDriveResumeFileId(), exportMimeType));
         String fileName = buildDownloadFileName(
                 firstNonBlank(application.getDriveResumeFileName(), application.getVacancyName(), application.getOrganization(), "application-resume"),
                 extension
@@ -95,7 +80,7 @@ public class GoogleDriveGeneratedResumeDownloadService {
 
     private DownloadedFile downloadBaseResume(UUID baseResumeId, String exportMimeType, String extension) {
         UUID userId = securityUtils.getCurrentUserId();
-        GoogleDriveConnection connection = getConnectionWithFreshAccessToken();
+        credentialService.getValidCredentials(userId);
 
         GoogleDriveBaseResume baseResume = baseResumeRepository
                 .findByIdAndConnectionUserId(baseResumeId, userId)
@@ -107,53 +92,15 @@ public class GoogleDriveGeneratedResumeDownloadService {
 
         byte[] content;
         if (baseResume.isReadOnly()) {
-            content = googleDriveApiClient.downloadFileBytes(connection.getAccessToken(), baseResume.getGoogleFileId());
+            content = credentialService.call(userId,
+                    token -> googleDriveApiClient.downloadFileBytes(token, baseResume.getGoogleFileId()));
         } else {
-            content = exportDocument(connection.getAccessToken(), baseResume.getGoogleFileId(), exportMimeType);
+            content = credentialService.call(userId,
+                    token -> googleDriveApiClient.exportDocument(token, baseResume.getGoogleFileId(), exportMimeType));
         }
         String fileName = buildDownloadFileName(baseResume.getDocumentName(), extension);
 
         return new DownloadedFile(fileName, exportMimeType, content);
-    }
-
-    private GoogleDriveConnection getConnectionWithFreshAccessToken() {
-        if (!googleDriveProperties.isConfigured()) {
-            throw new BadRequestException("Google Drive integration is not configured on the server");
-        }
-
-        GoogleDriveConnection connection = connectionRepository.findByUserId(securityUtils.getCurrentUserId())
-                .orElseThrow(() -> new BadRequestException("Google Drive is not connected for the current user"));
-        return refreshAccessTokenIfNeeded(connection);
-    }
-
-    private GoogleDriveConnection refreshAccessTokenIfNeeded(GoogleDriveConnection connection) {
-        if (connection.getAccessTokenExpiresAt() != null
-                && connection.getAccessTokenExpiresAt().isAfter(LocalDateTime.now().plusMinutes(1))) {
-            return connection;
-        }
-
-        GoogleDriveApiClient.OAuthTokens refreshed = googleDriveApiClient.refreshAccessToken(connection.getRefreshToken());
-        connection.setAccessToken(refreshed.accessToken());
-        connection.setAccessTokenExpiresAt(refreshed.accessTokenExpiresAt());
-
-        if (StringUtils.hasText(refreshed.scope())) {
-            connection.setGrantedScopes(refreshed.scope());
-        }
-
-        return connectionRepository.save(connection);
-    }
-
-    private byte[] exportDocument(String accessToken, String documentId, String mimeType) {
-        Drive drive = driveClientFactory.create(accessToken);
-
-        try {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            drive.files().export(documentId, mimeType).executeMediaAndDownloadTo(outputStream);
-            return outputStream.toByteArray();
-        } catch (IOException ex) {
-            log.error("event=GOOGLE_DRIVE_EXPORT_ERROR documentId={} mimeType={} message={}", documentId, mimeType, ex.getMessage(), ex);
-            throw new BadRequestException("Failed to export generated resume as " + mimeType);
-        }
     }
 
     private String buildDownloadFileName(String baseName, String extension) {

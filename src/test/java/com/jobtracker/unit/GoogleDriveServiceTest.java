@@ -14,13 +14,14 @@ import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.GoogleDriveBaseResumeRepository;
 import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.service.GoogleDriveApiClient;
+import com.jobtracker.service.GoogleDriveConnectionStateWriter;
+import com.jobtracker.service.GoogleDriveCredentialService;
 import com.jobtracker.service.GoogleDriveService;
 import com.jobtracker.util.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -53,7 +54,6 @@ class GoogleDriveServiceTest {
 
     private GoogleDriveProperties googleDriveProperties;
 
-    @InjectMocks
     private GoogleDriveService googleDriveService;
 
     private GoogleDriveConnection connection;
@@ -69,10 +69,15 @@ class GoogleDriveServiceTest {
                 "http://localhost:5173/settings/google-drive/callback",
                 "https://accounts.google.com/o/oauth2/v2/auth",
                 "https://oauth2.googleapis.com/token",
-                TEST_SCOPES
+                TEST_SCOPES,
+                60
         );
+        GoogleDriveCredentialService credentialService = new GoogleDriveCredentialService(
+                googleDriveApiClient, googleDriveProperties, connectionRepository,
+                new GoogleDriveConnectionStateWriter(connectionRepository));
         googleDriveService = new GoogleDriveService(
                 googleDriveApiClient,
+                credentialService,
                 googleDriveProperties,
                 connectionRepository,
                 baseResumeRepository,

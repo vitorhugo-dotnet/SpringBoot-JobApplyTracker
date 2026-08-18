@@ -15,6 +15,8 @@ import com.jobtracker.repository.GoogleDriveConnectionRepository;
 import com.jobtracker.service.BaseInformationService;
 import com.jobtracker.service.DocumentTextExtractor;
 import com.jobtracker.service.GoogleDriveApiClient;
+import com.jobtracker.service.GoogleDriveConnectionStateWriter;
+import com.jobtracker.service.GoogleDriveCredentialService;
 import com.jobtracker.util.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,12 +60,15 @@ class BaseInformationServiceTest {
                 "http://localhost:5173/settings/google-drive/callback",
                 "https://accounts.google.com/o/oauth2/v2/auth",
                 "https://oauth2.googleapis.com/token",
-                TEST_SCOPES
+                TEST_SCOPES,
+                60
         );
+        GoogleDriveCredentialService credentialService = new GoogleDriveCredentialService(
+                googleDriveApiClient, googleDriveProperties, connectionRepository,
+                new GoogleDriveConnectionStateWriter(connectionRepository));
         service = new BaseInformationService(
                 googleDriveApiClient,
-                googleDriveProperties,
-                connectionRepository,
+                credentialService,
                 baseInformationRepository,
                 new DocumentTextExtractor(),
                 securityUtils
