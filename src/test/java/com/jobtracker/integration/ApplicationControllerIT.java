@@ -347,6 +347,20 @@ class ApplicationControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void patchApplication_explicitNullStatus_revertsToSendLater() throws Exception {
+        String id = createApplication("Reverting To Send Later");
+
+        mockMvc.perform(patch("/api/v1/applications/{id}", id)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").doesNotExist())
+                .andExpect(jsonPath("$.toSendLater").value(true))
+                .andExpect(jsonPath("$.applicationDate").doesNotExist());
+    }
+
+    @Test
     void patchApplication_shouldReturn404_whenNotFound() throws Exception {
         mockMvc.perform(patch("/api/v1/applications/{id}", UUID.randomUUID())
                         .header("Authorization", "Bearer " + accessToken)

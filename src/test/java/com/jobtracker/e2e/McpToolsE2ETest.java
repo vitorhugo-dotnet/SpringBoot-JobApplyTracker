@@ -6,6 +6,8 @@ import com.jobtracker.entity.enums.RoleName;
 import com.jobtracker.repository.ApplicationRepository;
 import com.jobtracker.repository.RefreshTokenRepository;
 import com.jobtracker.repository.RoleRepository;
+import com.jobtracker.repository.UserAchievementRepository;
+import com.jobtracker.repository.UserGamificationRepository;
 import com.jobtracker.repository.UserRepository;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
@@ -70,12 +72,16 @@ class McpToolsE2ETest extends AbstractE2ETest {
     @Autowired private RoleRepository roleRepository;
     @Autowired private RefreshTokenRepository refreshTokenRepository;
     @Autowired private ApplicationRepository applicationRepository;
+    @Autowired private UserGamificationRepository userGamificationRepository;
+    @Autowired private UserAchievementRepository userAchievementRepository;
 
     private String betaAccessToken;
     private String mcpSessionId;
 
     @BeforeEach
     void setUp() {
+        userAchievementRepository.deleteAll();
+        userGamificationRepository.deleteAll();
         applicationRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
@@ -206,6 +212,52 @@ class McpToolsE2ETest extends AbstractE2ETest {
                 .as("List-Base-Information must be callable end-to-end for a BETA user without error: %s",
                         response.asString())
                 .isNotEqualTo(Boolean.TRUE);
+    }
+
+    @Test
+    void createApplicationTool_statusAndApplicationDateOmitted_createsToSendLaterRecord() {
+        String call = """
+                {
+                  "jsonrpc": "2.0",
+                  "id": 4,
+                  "method": "tools/call",
+                  "params": {
+                    "name": "Create-Application",
+                    "arguments": {
+                      "vacancyName": "[TESTE] repro bug",
+                      "organization": "TESTE-BLOCKER",
+                      "rhAcceptedConnection": false,
+                      "interviewScheduled": false,
+                      "recruiterDmReminderEnabled": false
+                    }
+                  }
+                }
+                """;
+        Response response = given()
+                .header("Authorization", "Bearer " + betaAccessToken)
+                .header(MCP_SESSION_ID_HEADER, mcpSessionId)
+                .accept("application/json, text/event-stream")
+                .contentType("application/json")
+                .body(call)
+                .post(MCP_ENDPOINT)
+                .then().statusCode(200).extract().response();
+
+        JsonPath body = mcpJsonRpcBody(response);
+        assertThat(body.<Object>get("error"))
+                .as("Create-Application must not fail at the JSON-RPC layer when status/applicationDate "
+                        + "are omitted: %s", response.asString())
+                .isNull();
+        Boolean isError = body.getObject("result.isError", Boolean.class);
+        assertThat(isError)
+                .as("Create-Application must succeed end-to-end without status/applicationDate: %s",
+                        response.asString())
+                .isNotEqualTo(Boolean.TRUE);
+
+        String resultText = body.getString("result.content[0].text");
+        JsonPath resultBody = new JsonPath(resultText);
+        assertThat(resultBody.getBoolean("toSendLater"))
+                .as("Omitting status must create a 'To Send Later' draft record: %s", resultText)
+                .isTrue();
     }
 
     /**
