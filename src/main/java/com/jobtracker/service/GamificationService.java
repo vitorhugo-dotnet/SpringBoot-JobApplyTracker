@@ -511,7 +511,8 @@ public class GamificationService {
     }
 
     private boolean qualifiesForInterviewProgress(JobApplication application) {
-        return application.isInterviewScheduled() || INTERVIEW_PROGRESS_STATUSES.contains(application.getStatus());
+        String status = application.getStatus();
+        return application.isInterviewScheduled() || (status != null && INTERVIEW_PROGRESS_STATUSES.contains(status));
     }
 
     private boolean qualifiesForOfferWon(JobApplication application) {
