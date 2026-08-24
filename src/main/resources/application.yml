@@ -105,6 +105,18 @@ app:
   mail:
     enabled: ${APP_MAIL_ENABLED:true}
     from: ${APP_MAIL_FROM:no-reply@jobtracker.com}
+  github:
+    # Stable numeric user ID of the GitHub account shown in Developer Tools -> Source Code.
+    # This is the canonical identity of the integration: usernames can be renamed, IDs cannot.
+    user-id: ${GITHUB_USER_ID:65777252}
+    # Legacy/bootstrap username. Only used when no user ID is configured (resolved once to an ID)
+    # or as a presentation fallback while the GitHub API is unreachable.
+    login: ${GITHUB_LOGIN:}
+    api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
+    # Optional PAT. Unauthenticated requests are enough here, it only raises the rate limit.
+    token: ${GITHUB_TOKEN:}
+    cache-ttl-seconds: ${GITHUB_CACHE_TTL_SECONDS:3600}
+    timeout-ms: ${GITHUB_TIMEOUT_MS:5000}
   google-drive:
     client-id: ${GOOGLE_DRIVE_CLIENT_ID:}
     client-secret: ${GOOGLE_DRIVE_CLIENT_SECRET:}

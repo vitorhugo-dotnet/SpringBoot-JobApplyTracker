@@ -775,6 +775,11 @@ If `APP_SEED_ENABLED=true` and `APP_SEED_USER_EMAIL` is not provided (or the use
 | `GOOGLE_DRIVE_CLIENT_SECRET` | *(empty)* | Google OAuth client secret for Drive integration |
 | `GOOGLE_DRIVE_REDIRECT_URI` | `http://localhost:8080/api/v1/google-drive/oauth/callback` | OAuth callback URL registered in Google Cloud |
 | `GOOGLE_DRIVE_OAUTH_COMPLETE_URL` | *(empty)* | Frontend URL that receives OAuth completion redirects |
+| `GITHUB_USER_ID` | `65777252` | Stable GitHub numeric user ID of the linked account (canonical identity of the integration) |
+| `GITHUB_LOGIN` | *(empty)* | Legacy username. Resolved once to a numeric ID when no `GITHUB_USER_ID` is set; also used as a fallback label while GitHub is unreachable |
+| `GITHUB_API_BASE_URL` | `https://api.github.com` | GitHub REST API base URL |
+| `GITHUB_TOKEN` | *(empty)* | Optional PAT; only raises the GitHub API rate limit |
+| `GITHUB_CACHE_TTL_SECONDS` | `3600` | How long a resolved GitHub profile is cached |
 | `OPENAI_GPT_CLIENT_ID` | *(empty)* | OAuth client ID for GPT Actions |
 | `OPENAI_GPT_CLIENT_SECRET` | *(empty)* | OAuth client secret for GPT Actions |
 | `OPENAI_GPT_REDIRECT_URIS` | *(empty)* | Comma-separated GPT Action redirect URIs |
