@@ -4,23 +4,14 @@ spring:
   activate:
     on-profile: prod
   ai:
-    openai:
-      api-key: ${OPENAI_API_KEY:}
-      chat:
-        enabled: ${APP_ASSISTANT_ENABLED:false}
-        options:
-          model: ${OPENAI_CHAT_MODEL:gpt-5-mini}
-      embedding:
-        enabled: false
-      image:
-        enabled: false
-      moderation:
-        enabled: false
-      audio:
-        speech:
-          enabled: false
-        transcription:
-          enabled: false
+    model:
+      chat: ${APP_ASSISTANT_PROVIDER:none}
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY:}
+        chat:
+          options:
+            model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
     mcp:
       server:
         enabled: true
