@@ -1,4 +1,20 @@
 spring:
+  ai:
+    openai:
+      api-key: test-only-not-a-real-key
+      chat:
+        enabled: false
+      embedding:
+        enabled: false
+      image:
+        enabled: false
+      moderation:
+        enabled: false
+      audio:
+        speech:
+          enabled: false
+        transcription:
+          enabled: false
   threads:
     virtual:
       enabled: true
