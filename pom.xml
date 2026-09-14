@@ -192,6 +192,12 @@
             <version>${webauthn-server.version}</version>
         </dependency>
 
+        <!-- Spring AI Google GenAI chat model for Ask ApplyWell (disabled by default) -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-google-genai</artifactId>
+        </dependency>
+
         <!-- Spring AI MCP Server (Streamable HTTP) -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
@@ -262,6 +268,12 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mariadb</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
 

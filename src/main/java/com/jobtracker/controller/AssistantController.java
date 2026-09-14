@@ -1,0 +1,67 @@
+package com.jobtracker.controller;
+
+import com.jobtracker.config.AssistantProperties;
+import com.jobtracker.dto.assistant.AssistantChatRequest;
+import com.jobtracker.service.assistant.AssistantService;
+import com.jobtracker.service.assistant.AssistantService.AssistantStream;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.Disposable;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
+@Tag(name = "Assistant", description = "Read-only Ask ApplyWell assistant")
+@RestController
+@RequestMapping("/api/v1/assistant")
+public class AssistantController {
+    private final AssistantService assistant;
+    private final AssistantProperties properties;
+
+    public AssistantController(AssistantService assistant, AssistantProperties properties) {
+        this.assistant = assistant;
+        this.properties = properties;
+    }
+
+    @PreAuthorize("hasRole('USER') or hasAuthority('SCOPE_read:applications')")
+    @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chat(@Valid @RequestBody AssistantChatRequest request) {
+        AssistantStream stream = assistant.stream(request.message());
+        SseEmitter emitter = new SseEmitter(properties.getStreamTimeout().toMillis());
+        AtomicReference<Disposable> subscription = new AtomicReference<>();
+
+        emitter.onCompletion(() -> dispose(subscription));
+        emitter.onTimeout(() -> dispose(subscription));
+        emitter.onError(error -> dispose(subscription));
+
+        subscription.set(stream.content().subscribe(
+                token -> send(emitter, "token", Map.of("content", token)),
+                error -> {
+                    send(emitter, "error", Map.of("message", "Assistant provider is unavailable"));
+                    emitter.complete();
+                },
+                () -> {
+                    send(emitter, "complete", Map.of("sources", stream.sources().get()));
+                    emitter.complete();
+                }));
+        return emitter;
+    }
+
+    private void send(SseEmitter emitter, String event, Object data) {
+        try {
+            emitter.send(SseEmitter.event().name(event).data(data));
+        } catch (IOException ex) {
+            emitter.completeWithError(ex);
+        }
+    }
+
+    private void dispose(AtomicReference<Disposable> reference) {
+        Disposable disposable = reference.get();
+        if (disposable != null && !disposable.isDisposed()) disposable.dispose();
+    }
+}
