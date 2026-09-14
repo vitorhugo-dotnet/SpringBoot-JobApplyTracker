@@ -28,8 +28,11 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse getSummary() {
-        UUID userId = securityUtils.getCurrentUserId();
+        return getSummary(securityUtils.getCurrentUserId());
+    }
 
+    @Transactional(readOnly = true)
+    public DashboardSummaryResponse getSummary(UUID userId) {
         long totalApplications = applicationRepository.countByUserIdAndArchivedFalse(userId);
 
         // Include both legacy enum constant names (old records) and new English values (new records).

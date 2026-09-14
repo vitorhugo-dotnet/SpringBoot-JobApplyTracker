@@ -4,6 +4,12 @@ spring:
   activate:
     on-profile: prod
   ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        enabled: ${APP_ASSISTANT_ENABLED:false}
+        options:
+          model: ${OPENAI_CHAT_MODEL:gpt-5-mini}
     mcp:
       server:
         enabled: true
@@ -96,6 +102,12 @@ cors:
 app:
   logging:
     jobtracker-level: ${JOBTRACKER_LOG_LEVEL:DEBUG}
+  assistant:
+    enabled: ${APP_ASSISTANT_ENABLED:false}
+    max-message-length: ${APP_ASSISTANT_MAX_MESSAGE_LENGTH:4000}
+    default-search-results: ${APP_ASSISTANT_DEFAULT_SEARCH_RESULTS:10}
+    max-search-results: ${APP_ASSISTANT_MAX_SEARCH_RESULTS:20}
+    stream-timeout: ${APP_ASSISTANT_STREAM_TIMEOUT:60s}
   api:
     base-url: ${APP_API_BASE_URL:https://jobapply-api.hugojava.dev}
   frontend:
@@ -242,3 +254,6 @@ springdoc:
     - group: exports
       display-name: Exports API
       paths-to-match: /api/v1/exports/**, /api/v1/export-schedules/**
+    - group: assistant
+      display-name: Ask ApplyWell API
+      paths-to-match: /api/v1/assistant/**
