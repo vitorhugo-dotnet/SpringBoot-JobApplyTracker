@@ -10,6 +10,17 @@ spring:
         enabled: ${APP_ASSISTANT_ENABLED:false}
         options:
           model: ${OPENAI_CHAT_MODEL:gpt-5-mini}
+      embedding:
+        enabled: false
+      image:
+        enabled: false
+      moderation:
+        enabled: false
+      audio:
+        speech:
+          enabled: false
+        transcription:
+          enabled: false
     mcp:
       server:
         enabled: true
