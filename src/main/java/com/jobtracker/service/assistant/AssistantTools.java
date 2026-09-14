@@ -1,6 +1,5 @@
 package com.jobtracker.service.assistant;
 
-import com.jobtracker.dto.application.ApplicationResponse;
 import com.jobtracker.dto.assistant.AssistantApplicationView;
 import com.jobtracker.dto.dashboard.DashboardSummaryResponse;
 import com.jobtracker.repository.assistant.AssistantApplicationQueryRepository.ApplicationStats;

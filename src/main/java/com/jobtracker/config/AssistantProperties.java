@@ -2,8 +2,6 @@ package com.jobtracker.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
-import org.springframework.util.unit.DataSize;
-
 import java.time.Duration;
 
 @Component
