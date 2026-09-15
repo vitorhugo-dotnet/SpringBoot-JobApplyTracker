@@ -12,6 +12,8 @@ spring:
         chat:
           options:
             model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
+            thinking-budget: ${GEMINI_THINKING_BUDGET:0}
+            thinking-level: ${GEMINI_THINKING_LEVEL:}
     mcp:
       server:
         enabled: true
