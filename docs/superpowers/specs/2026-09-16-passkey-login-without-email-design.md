@@ -10,18 +10,20 @@ The React login page blocks passkey sign-in when the email field is empty. The f
 
 ## Proposed Behavior
 
-Use a discoverable-credential WebAuthn assertion. `POST /api/v1/auth/passkey/login/options` will no longer require a username/email. The backend will call `relyingParty.startAssertion(StartAssertionOptions.builder().timeout(...).build())`, which intentionally omits `allowCredentials` and lets the authenticator choose an eligible discoverable credential.
+Use a discoverable-credential WebAuthn assertion when no email is supplied. `POST /api/v1/auth/passkey/login/options` keeps accepting the existing request shape, but `email` becomes optional. Without email, the backend calls `relyingParty.startAssertion(StartAssertionOptions.builder().timeout(...).build())`, which intentionally omits `allowCredentials` and lets the authenticator choose an eligible discoverable credential.
 
-The authentication challenge will be stored without a user association. During verification, `RelyingParty.finishAssertion(...)` resolves and validates the credential through the configured `CredentialRepository`. The application will then resolve the authenticated user from `AssertionResult.getUsername()` and issue the normal auth tokens.
+For backward compatibility, clients that still send an email keep the existing username-bound flow, including the `passkeyAvailable=false` response when that account has no passkey.
+
+A username-less authentication challenge is stored without a user association. During verification, `RelyingParty.finishAssertion(...)` resolves and validates the credential through the configured `CredentialRepository`. The application then resolves the authenticated user from `AssertionResult.getUsername()` and issues the normal auth tokens.
 
 ## Backend Changes
 
-- Remove `PasskeyLoginOptionsRequest` from the login-options endpoint contract.
-- Change `PasskeyAuthService.loginOptions(...)` to take no arguments.
-- Start an assertion without `username`.
-- Persist the authentication challenge with `user = null`; the existing schema already allows a null `user_id`.
-- Keep verification and token issuance behavior unchanged except that the challenge is not pre-bound to a user.
-- Replace the existing email-based fallback integration test with a test proving `{}`/no email is accepted and returns assertion options.
+- Make `PasskeyLoginOptionsRequest.email` optional by retaining `@Email` and removing `@NotBlank`.
+- Keep `PasskeyAuthService.loginOptions(...)` compatible with the existing request DTO.
+- When email is blank/absent, start an assertion without `username` and persist the challenge with `user = null`.
+- When email is supplied, preserve the existing username-bound assertion and no-passkey fallback behavior.
+- Keep verification and token issuance behavior unchanged.
+- Add an integration test proving `{}`/no email is accepted and returns discoverable assertion options without `allowCredentials`.
 
 ## Frontend Changes
 
@@ -34,8 +36,8 @@ The authentication challenge will be stored without a user association. During v
 
 This design follows Yubico's documented username-less passkey flow: omitting the username from `StartAssertionOptions` causes the request to omit `allowCredentials`, requiring a discoverable credential. `finishAssertion` still validates the credential and returns the authenticated username. The repository already implements `lookupAll(credentialId)` and user-handle/username lookup required for discoverable authentication.
 
-No database migration is required.
+Keeping email optional rather than deleting it avoids breaking older frontend clients during rollout. No database migration is required.
 
 ## Rollout
 
-The backend PR must be deployed before or together with the frontend PR because the frontend will stop sending the email field to the passkey options endpoint.
+The backend PR should be deployed before or together with the frontend PR. Older clients remain compatible because the backend continues accepting an email when supplied; the new frontend uses the username-less path by sending `{}`.
