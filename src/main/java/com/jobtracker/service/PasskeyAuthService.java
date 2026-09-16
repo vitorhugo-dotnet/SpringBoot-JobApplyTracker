@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtracker.config.WebAuthnProperties;
 import com.jobtracker.dto.auth.AuthResponse;
 import com.jobtracker.dto.auth.MessageResponse;
+import com.jobtracker.dto.auth.PasskeyLoginOptionsRequest;
 import com.jobtracker.dto.auth.PasskeyOptionsResponse;
 import com.jobtracker.dto.auth.PasskeyStatusResponse;
 import com.jobtracker.dto.auth.PasskeyVerifyRequest;
@@ -141,7 +142,31 @@ public class PasskeyAuthService {
     }
 
     @Transactional
-    public PasskeyOptionsResponse loginOptions() {
+    public PasskeyOptionsResponse loginOptions(PasskeyLoginOptionsRequest request) {
+        String email = request == null ? null : request.email();
+        if (email != null && !email.isBlank()) {
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user == null || webAuthnCredentialRepository.countByUser(user) == 0) {
+                return new PasskeyOptionsResponse(false, null, null);
+            }
+
+            AssertionRequest assertionRequest = relyingParty.startAssertion(
+                    StartAssertionOptions.builder()
+                            .username(user.getEmail())
+                            .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
+                            .build()
+            );
+
+            WebAuthnChallenge challenge = persistChallenge(
+                    user,
+                    WebAuthnChallengeType.AUTHENTICATION,
+                    toJsonSafely(assertionRequest),
+                    assertionRequest.getPublicKeyCredentialRequestOptions().getChallenge().getBase64Url()
+            );
+
+            return new PasskeyOptionsResponse(true, challenge.getId(), readJson(toCredentialsGetJsonSafely(assertionRequest)));
+        }
+
         AssertionRequest assertionRequest = relyingParty.startAssertion(
                 StartAssertionOptions.builder()
                         .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
