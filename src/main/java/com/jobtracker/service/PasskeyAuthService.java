@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtracker.config.WebAuthnProperties;
 import com.jobtracker.dto.auth.AuthResponse;
 import com.jobtracker.dto.auth.MessageResponse;
-import com.jobtracker.dto.auth.PasskeyLoginOptionsRequest;
 import com.jobtracker.dto.auth.PasskeyOptionsResponse;
 import com.jobtracker.dto.auth.PasskeyStatusResponse;
 import com.jobtracker.dto.auth.PasskeyVerifyRequest;
@@ -142,21 +141,15 @@ public class PasskeyAuthService {
     }
 
     @Transactional
-    public PasskeyOptionsResponse loginOptions(PasskeyLoginOptionsRequest request) {
-        User user = userRepository.findByEmail(request.email()).orElse(null);
-        if (user == null || webAuthnCredentialRepository.countByUser(user) == 0) {
-            return new PasskeyOptionsResponse(false, null, null);
-        }
-
+    public PasskeyOptionsResponse loginOptions() {
         AssertionRequest assertionRequest = relyingParty.startAssertion(
                 StartAssertionOptions.builder()
-                        .username(user.getEmail())
                         .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
                         .build()
         );
 
         WebAuthnChallenge challenge = persistChallenge(
-                user,
+                null,
                 WebAuthnChallengeType.AUTHENTICATION,
                 toJsonSafely(assertionRequest),
                 assertionRequest.getPublicKeyCredentialRequestOptions().getChallenge().getBase64Url()
@@ -269,7 +262,7 @@ public class PasskeyAuthService {
         try {
             return assertionRequest.toCredentialsGetJson();
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to serialize WebAuthn assertion options", e);
+            throw new IllegalStateException("Failed to serialize WebAuthn authentication options", e);
         }
     }
 
