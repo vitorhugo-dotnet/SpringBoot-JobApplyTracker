@@ -164,7 +164,7 @@ public class PasskeyAuthService {
                     assertionRequest.getPublicKeyCredentialRequestOptions().getChallenge().getBase64Url()
             );
 
-            return new PasskeyOptionsResponse(true, challenge.getId(), readJson(toCredentialsGetJsonSafely(assertionRequest)));
+            return new PasskeyOptionsResponse(true, challenge.getId(), readCredentialPublicKey(toCredentialsGetJsonSafely(assertionRequest)));
         }
 
         AssertionRequest assertionRequest = relyingParty.startAssertion(
@@ -180,7 +180,7 @@ public class PasskeyAuthService {
                 assertionRequest.getPublicKeyCredentialRequestOptions().getChallenge().getBase64Url()
         );
 
-        return new PasskeyOptionsResponse(true, challenge.getId(), readJson(toCredentialsGetJsonSafely(assertionRequest)));
+        return new PasskeyOptionsResponse(true, challenge.getId(), readCredentialPublicKey(toCredentialsGetJsonSafely(assertionRequest)));
     }
 
     @Transactional
@@ -257,6 +257,14 @@ public class PasskeyAuthService {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize WebAuthn options", e);
         }
+    }
+
+    private JsonNode readCredentialPublicKey(String credentialsJson) {
+        JsonNode publicKey = readJson(credentialsJson).get("publicKey");
+        if (publicKey == null || publicKey.isNull()) {
+            throw new IllegalStateException("WebAuthn credentials JSON does not contain publicKey options");
+        }
+        return publicKey;
     }
 
     private String toJsonSafely(PublicKeyCredentialCreationOptions options) {
