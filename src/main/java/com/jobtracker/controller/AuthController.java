@@ -14,6 +14,7 @@ import com.jobtracker.dto.auth.UpdateProfileRequest;
 import com.jobtracker.dto.auth.UserResponse;
 import com.jobtracker.dto.auth.PasskeyOptionsResponse;
 import com.jobtracker.dto.auth.PasskeyVerifyRequest;
+import com.jobtracker.dto.auth.PasskeyLoginOptionsRequest;
 import com.jobtracker.dto.auth.PasskeyStatusResponse;
 import com.jobtracker.mapper.AuthMapper;
 import com.jobtracker.service.AuthService;
@@ -252,8 +253,9 @@ public class AuthController {
     }
 
     @PostMapping("/passkey/login/options")
-    public ResponseEntity<PasskeyOptionsResponse> passkeyLoginOptions() {
-        return ResponseEntity.ok(passkeyAuthService.loginOptions());
+    public ResponseEntity<PasskeyOptionsResponse> passkeyLoginOptions(
+            @Valid @RequestBody(required = false) PasskeyLoginOptionsRequest request) {
+        return ResponseEntity.ok(passkeyAuthService.loginOptions(request));
     }
 
     @PostMapping("/passkey/login/verify")
