@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Allow discoverable passkey authentication to start without an email while preserving email/password validation.
+**Goal:** Allow discoverable passkey authentication to start without an email while preserving email/password validation and compatibility with older passkey clients.
 
-**Architecture:** The backend owns the WebAuthn ceremony and will start authentication without a username, producing request options without an `allowCredentials` restriction. The frontend becomes a thin caller that starts this ceremony directly. Verification remains server-side and resolves the authenticated user from the validated assertion result.
+**Architecture:** The backend owns the WebAuthn ceremony. When no email is supplied it starts a username-less discoverable assertion, producing request options without an `allowCredentials` restriction; when an older client sends an email, the existing username-bound flow remains available. The frontend starts the username-less ceremony directly. Verification remains server-side and resolves the authenticated user from the validated assertion result.
 
 **Tech Stack:** Spring Boot, Java 21+, Yubico java-webauthn-server 2.9.0, React, TypeScript, React Hook Form, Playwright.
 
@@ -14,7 +14,8 @@
 
 - Regular email/password login must continue requiring email and password.
 - Passkey login must not validate or require email in the frontend.
-- Passkey options must use a username-less discoverable-credential assertion.
+- Passkey options without email must use a username-less discoverable-credential assertion.
+- Existing clients that still send email must remain compatible.
 - No database migration.
 - Backend must be compatible before the frontend stops sending email.
 
@@ -23,36 +24,44 @@
 ### Task 1: Backend contract and discoverable assertion
 
 **Files:**
-- Modify: `src/test/java/com/jobtracker/integration/AuthControllerIT.java`
-- Modify: `src/main/java/com/jobtracker/controller/AuthController.java`
+- Create: `src/test/java/com/jobtracker/integration/PasskeyLoginOptionsIT.java`
+- Modify: `src/main/java/com/jobtracker/dto/auth/PasskeyLoginOptionsRequest.java`
 - Modify: `src/main/java/com/jobtracker/service/PasskeyAuthService.java`
-- Delete: `src/main/java/com/jobtracker/dto/auth/PasskeyLoginOptionsRequest.java`
 
 **Interfaces:**
-- Produces: `POST /api/v1/auth/passkey/login/options` accepting `{}` and returning `PasskeyOptionsResponse`.
-- Produces: `PasskeyAuthService.loginOptions()` with no request parameter.
+- Produces: `POST /api/v1/auth/passkey/login/options` accepting `{}` or the legacy `{ "email": "..." }` body and returning `PasskeyOptionsResponse`.
+- Produces: `PasskeyAuthService.loginOptions(PasskeyLoginOptionsRequest request)` where `request.email()` may be null.
 
-- [ ] **Step 1: Write the failing integration test**
+- [x] **Step 1: Write the failing integration test**
 
-Replace the email-dependent fallback test with a test that calls `/api/v1/auth/passkey/login/options` using `{}` and expects `200`, `passkeyAvailable=true`, a non-empty `challengeId`, and a `publicKey.challenge`.
+Add a test that calls `/api/v1/auth/passkey/login/options` using `{}` and expects `200`, `passkeyAvailable=true`, a non-empty `challengeId`, a `publicKey.challenge`, and no `publicKey.allowCredentials`.
 
-- [ ] **Step 2: Verify RED in GitHub Actions**
+- [x] **Step 2: Verify RED in GitHub Actions**
 
-Push only the test change and confirm the backend workflow fails because the current controller requires a valid email body.
+Push only the test change and confirm the backend workflow fails because the current controller validates the missing email as a bad request.
 
-- [ ] **Step 3: Implement the minimal backend change**
+- [x] **Step 3: Implement the minimal backend change**
 
-Remove `PasskeyLoginOptionsRequest` from the controller and service contract. Start the assertion using:
+Keep `PasskeyLoginOptionsRequest`, remove `@NotBlank` from `email`, and branch the service behavior:
 
 ```java
-AssertionRequest assertionRequest = relyingParty.startAssertion(
-        StartAssertionOptions.builder()
-                .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
-                .build()
-);
+if (email == null || email.isBlank()) {
+    assertionOptions = StartAssertionOptions.builder()
+            .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
+            .build();
+} else {
+    user = userRepository.findByEmail(email).orElse(null);
+    if (user == null || webAuthnCredentialRepository.countByUser(user) == 0) {
+        return new PasskeyOptionsResponse(false, null, null);
+    }
+    assertionOptions = StartAssertionOptions.builder()
+            .username(user.getEmail())
+            .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
+            .build();
+}
 ```
 
-Persist the authentication challenge with `user = null` and return the generated request options.
+Persist username-less authentication challenges with `user = null`; keep legacy email-aware challenges bound to the resolved user.
 
 - [ ] **Step 4: Verify GREEN in GitHub Actions**
 
@@ -64,21 +73,20 @@ Confirm the new integration test and the existing backend suite pass.
 - Modify: `tests/auth.spec.ts`
 - Modify: `src/api/passkey.ts`
 - Modify: `src/pages/auth/Login.tsx`
-- Modify as needed: `tests/support/*` only for WebAuthn/network test fixtures.
 
 **Interfaces:**
 - Consumes: backend `POST /api/v1/auth/passkey/login/options` accepting `{}`.
 - Produces: `loginWithPasskey(): Promise<AuthResponse | null>`.
 
-- [ ] **Step 1: Write the failing Playwright test**
+- [x] **Step 1: Write the failing Playwright test**
 
 Add an auth test that leaves Email empty, clicks `Sign in with a passkey`, and proves the passkey options request is initiated rather than showing the old `Enter your email address...` validation error.
 
-- [ ] **Step 2: Verify RED in GitHub Actions**
+- [x] **Step 2: Verify RED in GitHub Actions**
 
 Push only the frontend test change and confirm the workflow fails because the current UI blocks before the passkey request.
 
-- [ ] **Step 3: Implement the minimal frontend change**
+- [x] **Step 3: Implement the minimal frontend change**
 
 Change `loginWithPasskey(email: string)` to `loginWithPasskey()`, POST `{}` to `/auth/passkey/login/options`, and remove `getValues`, `emailRef`, and passkey-specific email validation from `Login.tsx`. Keep `register('email', { required: 'Email is required' })` for the password form.
 
@@ -91,7 +99,7 @@ Confirm auth tests and the complete frontend workflow pass.
 **Files:** none.
 
 **Interfaces:**
-- Backend PR documents the API contract change.
+- Backend PR documents the compatible API contract change.
 - Frontend PR closes `React-JobApplyTracker#109` and references the backend dependency.
 
 - [ ] **Step 1: Inspect both PR diffs**
@@ -102,7 +110,7 @@ Confirm no unrelated refactors or generated artifacts are included.
 
 Check GitHub Actions for both PR head SHAs and require passing workflows before reporting completion.
 
-- [ ] **Step 3: Link the PRs**
+- [x] **Step 3: Link the PRs**
 
 Backend PR: `Related to vitorhugo-dotnet/React-JobApplyTracker#109`.
 
