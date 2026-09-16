@@ -33,9 +33,12 @@ public class AssistantApplicationQueryService {
     public List<AssistantApplicationView> search(UUID userId, String query, String organization,
                                                  String status, String platform, LocalDate from,
                                                  LocalDate to, boolean archived, Integer limit) {
-        String normalized = requiredQuery(query);
+        String normalized = optionalQuery(query);
+        if (normalized == null && !hasMeaningfulSearchFilter(organization, status, platform, from, to, archived)) {
+            throw new IllegalArgumentException("query or at least one structured filter is required");
+        }
         return queries.search(userId, normalized, organization, status, platform, from, to,
-                archived, properties.clampLimit(limit), usesFallback(normalized));
+                archived, properties.clampLimit(limit), normalized != null && usesFallback(normalized));
     }
 
     public AssistantApplicationView get(UUID userId, UUID id) {
@@ -50,7 +53,7 @@ public class AssistantApplicationQueryService {
     public AssistantApplicationQueryRepository.ApplicationStats stats(UUID userId, String query,
             String organization, String status, String platform, LocalDate from, LocalDate to,
             boolean archived) {
-        String normalized = query == null || query.isBlank() ? null : query.trim();
+        String normalized = optionalQuery(query);
         return queries.stats(userId, normalized, organization, status, platform, from, to,
                 archived, normalized != null && usesFallback(normalized));
     }
@@ -61,9 +64,19 @@ public class AssistantApplicationQueryService {
                 properties.clampLimit(limit));
     }
 
-    private String requiredQuery(String query) {
-        if (query == null || query.isBlank()) throw new IllegalArgumentException("query is required");
+    private String optionalQuery(String query) {
+        if (query == null || query.isBlank()) return null;
         return query.trim();
+    }
+
+    private boolean hasMeaningfulSearchFilter(String organization, String status, String platform,
+                                               LocalDate from, LocalDate to, boolean archived) {
+        return hasText(organization) || hasText(status) || hasText(platform)
+                || from != null || to != null || archived;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private boolean usesFallback(String query) {
