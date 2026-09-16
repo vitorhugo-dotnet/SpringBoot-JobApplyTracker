@@ -143,17 +143,26 @@ public class PasskeyAuthService {
 
     @Transactional
     public PasskeyOptionsResponse loginOptions(PasskeyLoginOptionsRequest request) {
-        User user = userRepository.findByEmail(request.email()).orElse(null);
-        if (user == null || webAuthnCredentialRepository.countByUser(user) == 0) {
-            return new PasskeyOptionsResponse(false, null, null);
+        String email = request.email();
+        User user = null;
+        StartAssertionOptions assertionOptions;
+
+        if (email == null || email.isBlank()) {
+            assertionOptions = StartAssertionOptions.builder()
+                    .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
+                    .build();
+        } else {
+            user = userRepository.findByEmail(email).orElse(null);
+            if (user == null || webAuthnCredentialRepository.countByUser(user) == 0) {
+                return new PasskeyOptionsResponse(false, null, null);
+            }
+            assertionOptions = StartAssertionOptions.builder()
+                    .username(user.getEmail())
+                    .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
+                    .build();
         }
 
-        AssertionRequest assertionRequest = relyingParty.startAssertion(
-                StartAssertionOptions.builder()
-                        .username(user.getEmail())
-                        .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
-                        .build()
-        );
+        AssertionRequest assertionRequest = relyingParty.startAssertion(assertionOptions);
 
         WebAuthnChallenge challenge = persistChallenge(
                 user,
