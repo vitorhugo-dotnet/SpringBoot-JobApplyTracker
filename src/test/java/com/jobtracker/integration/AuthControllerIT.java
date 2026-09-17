@@ -399,6 +399,27 @@ class AuthControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void passkeyRegisterOptions_shouldExposeCreationOptionsDirectlyUnderPublicKey() throws Exception {
+        RegisterRequest reg = new RegisterRequest("Passkey User", "passkey-register@example.com", "pass1234", "pass1234", true);
+        MvcResult regResult = mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(reg)))
+                .andReturn();
+
+        AuthResponse auth = objectMapper.readValue(regResult.getResponse().getContentAsString(), AuthResponse.class);
+
+        mockMvc.perform(post("/api/v1/auth/passkey/register/options")
+                        .header("Authorization", "Bearer " + auth.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.passkeyAvailable").value(true))
+                .andExpect(jsonPath("$.challengeId").isNotEmpty())
+                .andExpect(jsonPath("$.publicKey.challenge").isNotEmpty())
+                .andExpect(jsonPath("$.publicKey.user.id").isNotEmpty())
+                .andExpect(jsonPath("$.publicKey.publicKey").doesNotExist());
+    }
+
+    @Test
     void passkeyRegisterOptions_shouldReturn403WhenNotAuthenticated() throws Exception {
         mockMvc.perform(post("/api/v1/auth/passkey/register/options")
                         .contentType(MediaType.APPLICATION_JSON))
