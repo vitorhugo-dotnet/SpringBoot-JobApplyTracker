@@ -227,7 +227,7 @@ resilience4j:
         timeout-duration: ${RATE_LIMIT_AUTH_RESET_PASSWORD_TIMEOUT_DURATION:0}
       authLogout:
         limit-for-period: ${RATE_LIMIT_AUTH_LOGOUT_LIMIT_FOR_PERIOD:20}
-        limit-refresh-period: ${RATE_LIMIT_AUTH_LOGOUT_REFRESH_REFRESH_PERIOD:1m}
+        limit-refresh-period: ${RATE_LIMIT_AUTH_LOGOUT_REFRESH_PERIOD:1m}
         timeout-duration: ${RATE_LIMIT_AUTH_LOGOUT_TIMEOUT_DURATION:0}
       formLogin:
         limit-for-period: ${RATE_LIMIT_FORM_LOGIN_LIMIT_FOR_PERIOD:10}
