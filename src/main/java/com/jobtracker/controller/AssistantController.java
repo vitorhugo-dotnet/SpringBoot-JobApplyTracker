@@ -2,6 +2,7 @@ package com.jobtracker.controller;
 
 import com.jobtracker.config.AssistantProperties;
 import com.jobtracker.dto.assistant.AssistantChatRequest;
+import com.jobtracker.service.assistant.AssistantProviderErrorMapper;
 import com.jobtracker.service.assistant.AssistantService;
 import com.jobtracker.service.assistant.AssistantService.AssistantStream;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,10 +23,13 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AssistantController {
     private final AssistantService assistant;
     private final AssistantProperties properties;
+    private final AssistantProviderErrorMapper errorMapper;
 
-    public AssistantController(AssistantService assistant, AssistantProperties properties) {
+    public AssistantController(AssistantService assistant, AssistantProperties properties,
+                               AssistantProviderErrorMapper errorMapper) {
         this.assistant = assistant;
         this.properties = properties;
+        this.errorMapper = errorMapper;
     }
 
     @PreAuthorize("hasRole('USER') or hasAuthority('SCOPE_read:applications')")
@@ -42,7 +46,7 @@ public class AssistantController {
         subscription.set(stream.content().subscribe(
                 token -> send(emitter, "token", Map.of("content", token)),
                 error -> {
-                    send(emitter, "error", Map.of("message", "Assistant provider is unavailable"));
+                    send(emitter, "error", errorMapper.map(error));
                     emitter.complete();
                 },
                 () -> {
