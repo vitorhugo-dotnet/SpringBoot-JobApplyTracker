@@ -22,6 +22,7 @@ class PasskeyDiscoverableLoginIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.passkeyAvailable").value(true))
                 .andExpect(jsonPath("$.challengeId").isNotEmpty())
-                .andExpect(jsonPath("$.publicKey.challenge").isNotEmpty());
+                .andExpect(jsonPath("$.publicKey.challenge").isNotEmpty())
+                .andExpect(jsonPath("$.publicKey.rpId").value("localhost"));
     }
 }
