@@ -2,7 +2,7 @@ package com.jobtracker.controller;
 
 import com.jobtracker.config.AssistantProperties;
 import com.jobtracker.dto.assistant.AssistantChatRequest;
-import com.jobtracker.service.assistant.AssistantService;
+import com.jobtracker.service.assistant.AssistantProviderErrorMapper;\nimport com.jobtracker.service.assistant.AssistantService;
 import com.jobtracker.service.assistant.AssistantService.AssistantStream;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -42,7 +42,7 @@ public class AssistantController {
         subscription.set(stream.content().subscribe(
                 token -> send(emitter, "token", Map.of("content", token)),
                 error -> {
-                    send(emitter, "error", Map.of("message", "Assistant provider is unavailable"));
+                    send(emitter, "error", errorMapper.map(error));
                     emitter.complete();
                 },
                 () -> {
