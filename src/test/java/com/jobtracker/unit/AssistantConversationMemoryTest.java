@@ -20,7 +20,6 @@ import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import reactor.core.publisher.Flux;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,8 +66,8 @@ class AssistantConversationMemoryTest {
 
         AssistantService service = service(model, security);
 
-        consume(invokeStream(service, conversationId, "Quantas vagas já me candidatei no BTG?"));
-        consume(invokeStream(service, conversationId, "Eu deixei alguma nota explicando o motivo que fui rejeitado?"));
+        consume(service.stream(conversationId, "Quantas vagas já me candidatei no BTG?"));
+        consume(service.stream(conversationId, "Eu deixei alguma nota explicando o motivo que fui rejeitado?"));
 
         assertThat(promptTexts(prompts.get(1)))
                 .contains("Quantas vagas já me candidatei no BTG?")
@@ -86,8 +85,8 @@ class AssistantConversationMemoryTest {
 
         AssistantService service = service(model, security);
 
-        consume(invokeStream(service, UUID.randomUUID(), "Contexto secreto da conversa A"));
-        consume(invokeStream(service, UUID.randomUUID(), "Pergunta da conversa B"));
+        consume(service.stream(UUID.randomUUID(), "Contexto secreto da conversa A"));
+        consume(service.stream(UUID.randomUUID(), "Pergunta da conversa B"));
 
         assertThat(promptTexts(prompts.get(1)))
                 .doesNotContain("Contexto secreto da conversa A")
@@ -107,8 +106,8 @@ class AssistantConversationMemoryTest {
 
         AssistantService service = service(model, security);
 
-        consume(invokeStream(service, conversationId, "Contexto exclusivo do primeiro usuário"));
-        consume(invokeStream(service, conversationId, "Pergunta do segundo usuário"));
+        consume(service.stream(conversationId, "Contexto exclusivo do primeiro usuário"));
+        consume(service.stream(conversationId, "Pergunta do segundo usuário"));
 
         assertThat(promptTexts(prompts.get(1)))
                 .doesNotContain("Contexto exclusivo do primeiro usuário")
@@ -117,14 +116,8 @@ class AssistantConversationMemoryTest {
     }
 
     @Test
-    void memoryWindowIsBoundedByDefault() throws Exception {
-        Method getter = Arrays.stream(AssistantProperties.class.getMethods())
-                .filter(method -> method.getName().equals("getMemoryMaxMessages"))
-                .findFirst()
-                .orElse(null);
-
-        assertThat(getter).as("AssistantProperties#getMemoryMaxMessages").isNotNull();
-        assertThat(getter.invoke(new AssistantProperties())).isEqualTo(20);
+    void memoryWindowIsBoundedByDefault() {
+        assertThat(new AssistantProperties().getMemoryMaxMessages()).isEqualTo(20);
     }
 
     @Test
@@ -168,22 +161,6 @@ class AssistantConversationMemoryTest {
                 security,
                 properties,
                 new SimpleMeterRegistry());
-    }
-
-    private AssistantStream invokeStream(AssistantService service, UUID conversationId, String message) {
-        Method method = Arrays.stream(AssistantService.class.getMethods())
-                .filter(candidate -> candidate.getName().equals("stream"))
-                .filter(candidate -> Arrays.equals(candidate.getParameterTypes(), new Class<?>[]{UUID.class, String.class}))
-                .findFirst()
-                .orElse(null);
-
-        assertThat(method).as("AssistantService#stream(UUID, String)").isNotNull();
-
-        try {
-            return (AssistantStream) method.invoke(service, conversationId, message);
-        } catch (ReflectiveOperationException exception) {
-            throw new AssertionError("Unable to invoke conversation-aware assistant stream", exception);
-        }
     }
 
     private void consume(AssistantStream stream) {
