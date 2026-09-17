@@ -31,7 +31,7 @@ public class AssistantController {
     @PreAuthorize("hasRole('USER') or hasAuthority('SCOPE_read:applications')")
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chat(@Valid @RequestBody AssistantChatRequest request) {
-        AssistantStream stream = assistant.stream(request.message());
+        AssistantStream stream = assistant.stream(request.conversationId(), request.message());
         SseEmitter emitter = new SseEmitter(properties.getStreamTimeout().toMillis());
         AtomicReference<Disposable> subscription = new AtomicReference<>();
 
