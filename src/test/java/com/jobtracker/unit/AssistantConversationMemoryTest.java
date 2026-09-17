@@ -8,7 +8,7 @@ import com.jobtracker.service.assistant.AssistantService;
 import com.jobtracker.service.assistant.AssistantService.AssistantStream;
 import com.jobtracker.util.SecurityUtils;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Validation;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -47,7 +47,13 @@ class AssistantConversationMemoryTest {
                 .orElseThrow();
 
         assertThat(conversationId.getType()).isEqualTo(UUID.class);
-        assertThat(conversationId.getAnnotation(NotNull.class)).isNotNull();
+
+        try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
+            assertThat(validatorFactory.getValidator()
+                    .validate(new AssistantChatRequest(null, "Hello")))
+                    .anySatisfy(violation ->
+                            assertThat(violation.getMessage()).isEqualTo("Conversation ID is required"));
+        }
     }
 
     @Test
