@@ -11,6 +11,7 @@ public class AssistantProperties {
     private int maxMessageLength = 4000;
     private int defaultSearchResults = 10;
     private int maxSearchResults = 20;
+    private int memoryMaxMessages = 20;
     private Duration streamTimeout = Duration.ofSeconds(60);
 
     public boolean isEnabled() { return enabled; }
@@ -21,6 +22,8 @@ public class AssistantProperties {
     public void setDefaultSearchResults(int value) { this.defaultSearchResults = value; }
     public int getMaxSearchResults() { return maxSearchResults; }
     public void setMaxSearchResults(int value) { this.maxSearchResults = value; }
+    public int getMemoryMaxMessages() { return memoryMaxMessages; }
+    public void setMemoryMaxMessages(int value) { this.memoryMaxMessages = value; }
     public Duration getStreamTimeout() { return streamTimeout; }
     public void setStreamTimeout(Duration value) { this.streamTimeout = value; }
 
