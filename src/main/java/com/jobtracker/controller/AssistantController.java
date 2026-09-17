@@ -2,7 +2,8 @@ package com.jobtracker.controller;
 
 import com.jobtracker.config.AssistantProperties;
 import com.jobtracker.dto.assistant.AssistantChatRequest;
-import com.jobtracker.service.assistant.AssistantProviderErrorMapper;\nimport com.jobtracker.service.assistant.AssistantService;
+import com.jobtracker.service.assistant.AssistantProviderErrorMapper;
+import com.jobtracker.service.assistant.AssistantService;
 import com.jobtracker.service.assistant.AssistantService.AssistantStream;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,10 +23,13 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AssistantController {
     private final AssistantService assistant;
     private final AssistantProperties properties;
+    private final AssistantProviderErrorMapper errorMapper;
 
-    public AssistantController(AssistantService assistant, AssistantProperties properties) {
+    public AssistantController(AssistantService assistant, AssistantProperties properties,
+                               AssistantProviderErrorMapper errorMapper) {
         this.assistant = assistant;
         this.properties = properties;
+        this.errorMapper = errorMapper;
     }
 
     @PreAuthorize("hasRole('USER') or hasAuthority('SCOPE_read:applications')")
