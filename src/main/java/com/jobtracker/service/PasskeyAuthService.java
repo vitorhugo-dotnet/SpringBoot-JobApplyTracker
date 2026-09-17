@@ -30,12 +30,14 @@ import com.yubico.webauthn.StartAssertionOptions;
 import com.yubico.webauthn.StartRegistrationOptions;
 import com.yubico.webauthn.data.AuthenticatorAssertionResponse;
 import com.yubico.webauthn.data.AuthenticatorAttestationResponse;
+import com.yubico.webauthn.data.AuthenticatorSelectionCriteria;
 import com.yubico.webauthn.data.AuthenticatorTransport;
 import com.yubico.webauthn.data.ByteArray;
 import com.yubico.webauthn.data.ClientAssertionExtensionOutputs;
 import com.yubico.webauthn.data.ClientRegistrationExtensionOutputs;
 import com.yubico.webauthn.data.PublicKeyCredential;
 import com.yubico.webauthn.data.PublicKeyCredentialCreationOptions;
+import com.yubico.webauthn.data.ResidentKeyRequirement;
 import com.yubico.webauthn.data.UserIdentity;
 import com.yubico.webauthn.exception.AssertionFailedException;
 import com.yubico.webauthn.exception.RegistrationFailedException;
@@ -89,6 +91,9 @@ public class PasskeyAuthService {
         PublicKeyCredentialCreationOptions options = relyingParty.startRegistration(
                 StartRegistrationOptions.builder()
                         .user(userIdentity)
+                        .authenticatorSelection(AuthenticatorSelectionCriteria.builder()
+                                .residentKey(ResidentKeyRequirement.REQUIRED)
+                                .build())
                         .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
                         .build()
         );
