@@ -100,7 +100,7 @@ public class PasskeyAuthService {
                 options.getChallenge().getBase64Url()
         );
 
-        return new PasskeyOptionsResponse(true, challenge.getId(), readJson(toCredentialsCreateJsonSafely(options)));
+        return new PasskeyOptionsResponse(true, challenge.getId(), readCredentialPublicKey(toCredentialsCreateJsonSafely(options)));
     }
 
     @Transactional
