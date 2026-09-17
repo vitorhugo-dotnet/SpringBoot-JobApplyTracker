@@ -253,7 +253,8 @@ public class AuthController {
     }
 
     @PostMapping("/passkey/login/options")
-    public ResponseEntity<PasskeyOptionsResponse> passkeyLoginOptions(@Valid @RequestBody PasskeyLoginOptionsRequest request) {
+    public ResponseEntity<PasskeyOptionsResponse> passkeyLoginOptions(
+            @Valid @RequestBody(required = false) PasskeyLoginOptionsRequest request) {
         return ResponseEntity.ok(passkeyAuthService.loginOptions(request));
     }
 

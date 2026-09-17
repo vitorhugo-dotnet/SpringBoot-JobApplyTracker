@@ -143,26 +143,44 @@ public class PasskeyAuthService {
 
     @Transactional
     public PasskeyOptionsResponse loginOptions(PasskeyLoginOptionsRequest request) {
-        User user = userRepository.findByEmail(request.email()).orElse(null);
-        if (user == null || webAuthnCredentialRepository.countByUser(user) == 0) {
-            return new PasskeyOptionsResponse(false, null, null);
+        String email = request == null ? null : request.email();
+        if (email != null && !email.isBlank()) {
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user == null || webAuthnCredentialRepository.countByUser(user) == 0) {
+                return new PasskeyOptionsResponse(false, null, null);
+            }
+
+            AssertionRequest assertionRequest = relyingParty.startAssertion(
+                    StartAssertionOptions.builder()
+                            .username(user.getEmail())
+                            .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
+                            .build()
+            );
+
+            WebAuthnChallenge challenge = persistChallenge(
+                    user,
+                    WebAuthnChallengeType.AUTHENTICATION,
+                    toJsonSafely(assertionRequest),
+                    assertionRequest.getPublicKeyCredentialRequestOptions().getChallenge().getBase64Url()
+            );
+
+            return new PasskeyOptionsResponse(true, challenge.getId(), readCredentialPublicKey(toCredentialsGetJsonSafely(assertionRequest)));
         }
 
         AssertionRequest assertionRequest = relyingParty.startAssertion(
                 StartAssertionOptions.builder()
-                        .username(user.getEmail())
                         .timeout(webAuthnProperties.challengeTimeoutSeconds() * 1000L)
                         .build()
         );
 
         WebAuthnChallenge challenge = persistChallenge(
-                user,
+                null,
                 WebAuthnChallengeType.AUTHENTICATION,
                 toJsonSafely(assertionRequest),
                 assertionRequest.getPublicKeyCredentialRequestOptions().getChallenge().getBase64Url()
         );
 
-        return new PasskeyOptionsResponse(true, challenge.getId(), readJson(toCredentialsGetJsonSafely(assertionRequest)));
+        return new PasskeyOptionsResponse(true, challenge.getId(), readCredentialPublicKey(toCredentialsGetJsonSafely(assertionRequest)));
     }
 
     @Transactional
@@ -241,6 +259,14 @@ public class PasskeyAuthService {
         }
     }
 
+    private JsonNode readCredentialPublicKey(String credentialsJson) {
+        JsonNode publicKey = readJson(credentialsJson).get("publicKey");
+        if (publicKey == null || publicKey.isNull()) {
+            throw new IllegalStateException("WebAuthn credentials JSON does not contain publicKey options");
+        }
+        return publicKey;
+    }
+
     private String toJsonSafely(PublicKeyCredentialCreationOptions options) {
         try {
             return options.toJson();
@@ -269,7 +295,7 @@ public class PasskeyAuthService {
         try {
             return assertionRequest.toCredentialsGetJson();
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to serialize WebAuthn assertion options", e);
+            throw new IllegalStateException("Failed to serialize WebAuthn authentication options", e);
         }
     }
 
