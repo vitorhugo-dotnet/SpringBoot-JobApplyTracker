@@ -116,7 +116,10 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "Malformed or unreadable request body");
     }
 
-    @ExceptionHandler(Exception.class)
+    @ExceptionHandler(value = Exception.class, produces = {
+            MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+            MediaType.APPLICATION_JSON_VALUE
+    })
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
         log.error("event=UNEXPECTED_ERROR message={}", ex.getMessage(), ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
