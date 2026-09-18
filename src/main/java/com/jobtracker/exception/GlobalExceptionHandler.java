@@ -74,7 +74,10 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.FORBIDDEN, "Access denied");
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ExceptionHandler(value = MethodArgumentNotValidException.class, produces = {
+            MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+            MediaType.APPLICATION_JSON_VALUE
+    })
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> fieldErrors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
@@ -104,7 +107,10 @@ public class GlobalExceptionHandler {
     // Map an unparseable/malformed request body to 400 (not 500). Without this, the
     // generic Exception handler below catches HttpMessageNotReadableException (e.g. a
     // date that doesn't match the expected yyyy-MM-dd format) and returns 500.
-    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ExceptionHandler(value = HttpMessageNotReadableException.class, produces = {
+            MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+            MediaType.APPLICATION_JSON_VALUE
+    })
     public ResponseEntity<Map<String, Object>> handleNotReadable(HttpMessageNotReadableException ex) {
         log.warn("event=MALFORMED_REQUEST_BODY message={}", ex.getMessage());
         return buildResponse(HttpStatus.BAD_REQUEST, "Malformed or unreadable request body");
