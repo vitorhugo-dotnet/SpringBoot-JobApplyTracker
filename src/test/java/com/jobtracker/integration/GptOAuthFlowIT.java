@@ -1,7 +1,7 @@
 package com.jobtracker.integration;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.jobtracker.dto.auth.AuthResponse;
 import com.jobtracker.dto.auth.RegisterRequest;
 import com.jobtracker.repository.ApplicationRepository;
@@ -19,6 +19,7 @@ import com.jobtracker.repository.WebAuthnCredentialRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -234,7 +235,10 @@ class GptOAuthFlowIT extends AbstractIntegrationTest {
 
     private String authorizeWithPkce(String email, String scope, PkcePair pkcePair) throws Exception {
         MvcResult result = mockMvc.perform(get("/oauth2/authorize")
-                        .with(user(email).roles("USER"))
+                        .with(user(email).roles("USER").authorities(
+                                FactorGrantedAuthority.withAuthority(FactorGrantedAuthority.PASSWORD_AUTHORITY)
+                                        .issuedAt(java.time.Instant.now())
+                                        .build()))
                         .queryParam("response_type", "code")
                         .queryParam("client_id", CLIENT_ID)
                         .queryParam("redirect_uri", REDIRECT_URI)

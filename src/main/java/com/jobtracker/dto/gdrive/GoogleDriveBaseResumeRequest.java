@@ -13,5 +13,9 @@ public record GoogleDriveBaseResumeRequest(
         String language,
 
         @Schema(description = "Whether this resume is a template", example = "true")
-        boolean template
-) {}
+        Boolean template
+) {
+    public GoogleDriveBaseResumeRequest {
+        template = Boolean.TRUE.equals(template);
+    }
+}

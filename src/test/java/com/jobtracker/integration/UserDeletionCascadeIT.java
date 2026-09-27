@@ -1,6 +1,6 @@
 package com.jobtracker.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.jobtracker.dto.auth.RegisterRequest;
 import com.jobtracker.entity.ExportExecution;
 import com.jobtracker.entity.ExportSchedule;

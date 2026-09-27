@@ -367,8 +367,8 @@ class ChatGptConnectorOAuthE2ETest {
     private static Map<String, Object> decodeJwtPayload(String jwt) throws Exception {
         String payload = jwt.split("\\.")[1];
         byte[] json = Base64.getUrlDecoder().decode(payload);
-        return new com.fasterxml.jackson.databind.ObjectMapper()
-                .readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        return new tools.jackson.databind.ObjectMapper()
+                .readValue(json, new tools.jackson.core.type.TypeReference<Map<String, Object>>() {});
     }
 
     /**

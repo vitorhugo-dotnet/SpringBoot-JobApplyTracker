@@ -1,6 +1,6 @@
 package com.jobtracker.unit.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.jobtracker.dto.dashboard.DashboardSummaryResponse;
 import com.jobtracker.dto.gamification.AchievementResponse;
 import com.jobtracker.dto.gamification.GamificationProfileResponse;
@@ -50,7 +50,7 @@ class McpDashboardToolsTest {
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper().findAndRegisterModules();
+        objectMapper = new ObjectMapper();
         resources = new McpReadOnlySnapshotResources(
                 dashboardService,
                 gamificationService,

@@ -1,7 +1,7 @@
 package com.jobtracker.mcp.resources;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.jobtracker.dto.auth.UserResponse;
 import com.jobtracker.mapper.AuthMapper;
 import com.jobtracker.mcp.McpResourcesConfig;
@@ -13,8 +13,8 @@ import com.jobtracker.service.GoogleDriveService;
 import com.jobtracker.util.SecurityUtils;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema.Role;
-import org.springaicommunity.mcp.annotation.McpResource;
-import org.springaicommunity.mcp.annotation.McpResource.McpAnnotations;
+import org.springframework.ai.mcp.annotation.McpResource;
+import org.springframework.ai.mcp.annotation.McpResource.McpAnnotations;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -162,7 +162,7 @@ public class McpReadOnlySnapshotResources {
     private String toJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalStateException("Failed to serialize MCP resource", ex);
         }
     }

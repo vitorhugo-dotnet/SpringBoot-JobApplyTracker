@@ -11,10 +11,10 @@ import com.jobtracker.dto.application.UpdateStatusRequest;
 import com.jobtracker.mcp.audit.AuditMcpOperation;
 import com.jobtracker.service.ApplicationService;
 import java.util.List;
-import org.springaicommunity.mcp.annotation.McpTool;
-import org.springaicommunity.mcp.annotation.McpTool.McpAnnotations;
-import org.springaicommunity.mcp.annotation.McpToolParam;
-import org.springaicommunity.mcp.context.McpSyncRequestContext;
+import org.springframework.ai.mcp.annotation.McpTool;
+import org.springframework.ai.mcp.annotation.McpTool.McpAnnotations;
+import org.springframework.ai.mcp.annotation.McpToolParam;
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;

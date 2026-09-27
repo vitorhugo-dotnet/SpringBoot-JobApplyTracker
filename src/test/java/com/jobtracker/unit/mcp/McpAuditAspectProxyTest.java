@@ -1,6 +1,6 @@
 package com.jobtracker.unit.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.jobtracker.mcp.audit.AuditMcpOperation;
 import com.jobtracker.mcp.audit.McpAuditAspect;
 import com.jobtracker.service.McpAuditService;

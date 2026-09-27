@@ -1,6 +1,6 @@
 package com.jobtracker.unit.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.jobtracker.dto.auth.UserResponse;
 import com.jobtracker.entity.User;
 import com.jobtracker.mapper.AuthMapper;
@@ -47,7 +47,7 @@ class McpProfileToolsTest {
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper().findAndRegisterModules();
+        objectMapper = new ObjectMapper();
         resources = new McpReadOnlySnapshotResources(
                 dashboardService,
                 gamificationService,
