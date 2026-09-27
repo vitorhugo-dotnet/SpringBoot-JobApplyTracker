@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
@@ -19,7 +21,7 @@ class AssistantServiceTest {
     @Test
     void rejectsBlankMessagesBeforeCallingAProvider() {
         AssistantService service = service(new AssistantProperties());
-        assertThatThrownBy(() -> service.stream(" "))
+        assertThatThrownBy(() -> service.stream(UUID.randomUUID(), " "))
                 .isInstanceOf(BadRequestException.class);
     }
 
@@ -28,7 +30,7 @@ class AssistantServiceTest {
         AssistantProperties properties = new AssistantProperties();
         properties.setEnabled(false);
         AssistantService service = service(properties);
-        assertThatThrownBy(() -> service.stream("How many applications?"))
+        assertThatThrownBy(() -> service.stream(UUID.randomUUID(), "How many applications?"))
                 .isInstanceOf(ServiceUnavailableException.class);
     }
 

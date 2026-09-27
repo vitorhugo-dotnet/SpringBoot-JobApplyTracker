@@ -5,6 +5,7 @@ import com.jobtracker.dto.dashboard.DashboardSummaryResponse;
 import com.jobtracker.repository.assistant.AssistantApplicationQueryRepository.ApplicationStats;
 import com.jobtracker.service.DashboardService;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -59,9 +60,15 @@ public class AssistantTools {
 
     public Set<String> sources() { return Set.copyOf(sources); }
 
-    public record SearchInput(String query, String organization, String status, String platform,
-                              LocalDate applicationDateFrom, LocalDate applicationDateTo,
-                              boolean archived, Integer limit) {}
+    public record SearchInput(
+            @ToolParam(description = "Optional free-text search query.", required = false) String query,
+            @ToolParam(description = "Optional exact organization filter.", required = false) String organization,
+            @ToolParam(description = "Optional application status filter.", required = false) String status,
+            @ToolParam(description = "Optional application platform filter.", required = false) String platform,
+            @ToolParam(description = "Optional inclusive application date lower bound.", required = false) LocalDate applicationDateFrom,
+            @ToolParam(description = "Optional inclusive application date upper bound.", required = false) LocalDate applicationDateTo,
+            boolean archived,
+            @ToolParam(description = "Optional result limit.", required = false) Integer limit) {}
     public record GetInput(UUID applicationId) {}
     public record StatsInput(String query, String organization, String status, String platform,
                              LocalDate applicationDateFrom, LocalDate applicationDateTo,

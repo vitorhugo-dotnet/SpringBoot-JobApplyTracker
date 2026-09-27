@@ -1,9 +1,8 @@
 package com.jobtracker.dto.auth;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 
 public record PasskeyLoginOptionsRequest(
-        @NotBlank @Email String email
+        @Email String email
 ) {
 }

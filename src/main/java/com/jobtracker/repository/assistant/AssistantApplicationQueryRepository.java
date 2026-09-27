@@ -29,8 +29,9 @@ public class AssistantApplicationQueryRepository {
                                                   String status, String platform, LocalDate from,
                                                   LocalDate to, boolean archived, int limit,
                                                   boolean shortTokenFallback) {
+        boolean hasQuery = query != null && !query.isBlank();
         StringBuilder sql = new StringBuilder(COLUMNS);
-        if (shortTokenFallback) {
+        if (!hasQuery || shortTokenFallback) {
             sql.append(", NULL AS relevance FROM job_applications WHERE user_id = :userId ");
         } else {
             sql.append(", ").append(MATCH).append(" AS relevance FROM job_applications WHERE user_id = :userId AND ")
@@ -38,14 +39,14 @@ public class AssistantApplicationQueryRepository {
         }
         MapSqlParameterSource p = baseParameters(userId, organization, status, platform, from, to, archived)
                 .addValue("query", query)
-                .addValue("likeQuery", "%" + escapeLike(query) + "%")
+                .addValue("likeQuery", hasQuery ? "%" + escapeLike(query) + "%" : null)
                 .addValue("limit", limit);
         appendFilters(sql, organization, status, platform, from, to);
-        if (shortTokenFallback) {
+        if (hasQuery && shortTokenFallback) {
             sql.append(" AND (vacancy_name LIKE :likeQuery ESCAPE '\\\\' OR organization LIKE :likeQuery ESCAPE '\\\\' ")
                     .append("OR recruiter_name LIKE :likeQuery ESCAPE '\\\\' OR note LIKE :likeQuery ESCAPE '\\\\') ");
         }
-        sql.append(shortTokenFallback
+        sql.append(!hasQuery || shortTokenFallback
                 ? " ORDER BY application_date DESC, created_at DESC, id ASC LIMIT :limit"
                 : " ORDER BY relevance DESC, application_date DESC, id ASC LIMIT :limit");
         return jdbc.query(sql.toString(), p, (rs, row) -> new AssistantApplicationView(
