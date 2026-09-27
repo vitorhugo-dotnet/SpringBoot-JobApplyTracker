@@ -4,8 +4,8 @@ import com.jobtracker.mcp.McpResourcesConfig;
 import com.jobtracker.mcp.audit.AuditMcpOperation;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema.Role;
-import org.springaicommunity.mcp.annotation.McpResource;
-import org.springaicommunity.mcp.annotation.McpResource.McpAnnotations;
+import org.springframework.ai.mcp.annotation.McpResource;
+import org.springframework.ai.mcp.annotation.McpResource.McpAnnotations;
 import org.springframework.stereotype.Service;
 
 @Service

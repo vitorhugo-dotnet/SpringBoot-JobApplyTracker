@@ -1,7 +1,7 @@
 package com.jobtracker.config;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.ai.tool.execution.DefaultToolExecutionExceptionProcessor;
 import org.springframework.ai.tool.execution.ToolExecutionExceptionProcessor;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +29,7 @@ public class AssistantToolCallingConfiguration {
             String message = delegate.process(exception);
             try {
                 return objectMapper.writeValueAsString(Map.of("error", message));
-            } catch (JsonProcessingException serializationFailure) {
+            } catch (JacksonException serializationFailure) {
                 return "{\"error\":\"Tool execution failed\"}";
             }
         };

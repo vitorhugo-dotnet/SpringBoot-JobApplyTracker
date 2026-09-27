@@ -11,10 +11,10 @@ import com.jobtracker.service.GoogleDriveGeneratedResumeDownloadService;
 import com.jobtracker.service.GoogleDriveGeneratedResumeDownloadService.DownloadedFile;
 import com.jobtracker.service.GoogleDriveService;
 import com.jobtracker.service.ResumeGenerationService;
-import org.springaicommunity.mcp.annotation.McpTool;
-import org.springaicommunity.mcp.annotation.McpTool.McpAnnotations;
-import org.springaicommunity.mcp.annotation.McpToolParam;
-import org.springaicommunity.mcp.context.McpSyncRequestContext;
+import org.springframework.ai.mcp.annotation.McpTool;
+import org.springframework.ai.mcp.annotation.McpTool.McpAnnotations;
+import org.springframework.ai.mcp.annotation.McpToolParam;
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
 

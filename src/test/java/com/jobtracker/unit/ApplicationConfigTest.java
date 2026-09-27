@@ -39,6 +39,6 @@ class UserDetailsConfigTest {
 
         assertThat(userDetails.getAuthorities())
                 .extracting("authority")
-                .containsExactlyInAnyOrder("ROLE_USER", "ROLE_BETA");
+                .containsExactlyInAnyOrder("ROLE_USER", "ROLE_BETA", "FACTOR_PASSWORD");
     }
 }

@@ -4,8 +4,8 @@ import com.jobtracker.mcp.McpPromptsConfig;
 import io.modelcontextprotocol.spec.McpSchema.GetPromptResult;
 import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import org.junit.jupiter.api.Test;
-import org.springaicommunity.mcp.annotation.McpComplete;
-import org.springaicommunity.mcp.annotation.McpPrompt;
+import org.springframework.ai.mcp.annotation.McpComplete;
+import org.springframework.ai.mcp.annotation.McpPrompt;
 
 import java.lang.reflect.Method;
 import java.util.Set;

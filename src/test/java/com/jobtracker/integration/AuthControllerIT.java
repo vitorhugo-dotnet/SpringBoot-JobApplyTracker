@@ -1,6 +1,6 @@
 package com.jobtracker.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.jobtracker.config.JwtService;
 import com.jobtracker.dto.auth.AuthResponse;
 import com.jobtracker.dto.auth.LoginRequest;

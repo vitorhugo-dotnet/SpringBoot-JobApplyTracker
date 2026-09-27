@@ -36,7 +36,7 @@ spring:
           resource://job-apply-tracker/application-lifecycle-rules for the full lifecycle policy.
         # Claude.ai (and other modern MCP connectors) speak the Streamable HTTP
         # transport: a single endpoint that handles both POST (JSON-RPC) and GET
-        # (SSE stream). Requires Spring AI 1.1+. The endpoint defaults to /mcp,
+        # (SSE stream). Requires Spring AI 2.0+. The endpoint defaults to /mcp,
         # which is already covered by SecurityConfig's /mcp/** rule and the
         # OAuth protected-resource metadata controller.
         protocol: STREAMABLE

@@ -1,8 +1,8 @@
 package com.jobtracker.service.export;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.jobtracker.dto.export.ExportFilters;
 import com.jobtracker.exception.BadRequestException;
 import org.springframework.stereotype.Component;
@@ -31,7 +31,7 @@ public class ExportConfigCodec {
         }
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new BadRequestException("Could not store the export configuration");
         }
     }
@@ -43,7 +43,7 @@ public class ExportConfigCodec {
         }
         try {
             return objectMapper.readValue(json, ExportFilters.class);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return ExportFilters.empty();
         }
     }
@@ -54,7 +54,7 @@ public class ExportConfigCodec {
         }
         try {
             return objectMapper.readValue(json, new TypeReference<List<String>>() {});
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return List.of();
         }
     }

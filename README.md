@@ -21,8 +21,8 @@ A production-ready Spring Boot REST API for tracking job applications, built wit
 ## Tech Stack
 
 - **Java 21**
-- **Spring Boot 3.5** (Web, Data JPA, Security, Validation)
-- **Spring AI 1.0.0** — MCP server (`spring-ai-starter-mcp-server-webmvc`, Streamable HTTP transport)
+- **Spring Boot 4.1** (Web MVC, Data JPA, Security, Validation)
+- **Spring AI 2.0** — MCP server (`spring-ai-starter-mcp-server-webmvc`, Streamable HTTP transport)
 - **Spring OAuth2 Authorization Server** (JDBC-backed, issues tokens for both GPT Actions and MCP clients)
 - **Spring Security** with stateless JWT authentication + role-based authorization (`USER`, `BETA`, `ADMIN`)
 - **JWT + Refresh Tokens** (access: 15 min, refresh: 7 days with rotation)

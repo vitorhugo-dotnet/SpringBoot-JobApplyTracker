@@ -1,8 +1,8 @@
 package com.jobtracker.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.jobtracker.config.WebAuthnProperties;
 import com.jobtracker.dto.auth.AuthResponse;
 import com.jobtracker.dto.auth.MessageResponse;
@@ -259,7 +259,7 @@ public class PasskeyAuthService {
     private JsonNode readJson(String json) {
         try {
             return objectMapper.readTree(json);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("Failed to serialize WebAuthn options", e);
         }
     }
@@ -275,7 +275,7 @@ public class PasskeyAuthService {
     private String toJsonSafely(PublicKeyCredentialCreationOptions options) {
         try {
             return options.toJson();
-        } catch (JsonProcessingException e) {
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize WebAuthn registration request", e);
         }
     }
@@ -283,7 +283,7 @@ public class PasskeyAuthService {
     private String toJsonSafely(AssertionRequest assertionRequest) {
         try {
             return assertionRequest.toJson();
-        } catch (JsonProcessingException e) {
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize WebAuthn assertion request", e);
         }
     }
@@ -291,7 +291,7 @@ public class PasskeyAuthService {
     private String toCredentialsCreateJsonSafely(PublicKeyCredentialCreationOptions options) {
         try {
             return options.toCredentialsCreateJson();
-        } catch (JsonProcessingException e) {
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize WebAuthn registration options", e);
         }
     }
@@ -299,7 +299,7 @@ public class PasskeyAuthService {
     private String toCredentialsGetJsonSafely(AssertionRequest assertionRequest) {
         try {
             return assertionRequest.toCredentialsGetJson();
-        } catch (JsonProcessingException e) {
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize WebAuthn authentication options", e);
         }
     }
@@ -307,7 +307,7 @@ public class PasskeyAuthService {
     private PublicKeyCredentialCreationOptions parseRegistrationOptions(String json) {
         try {
             return PublicKeyCredentialCreationOptions.fromJson(json);
-        } catch (JsonProcessingException e) {
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new BadRequestException("Invalid registration request payload");
         }
     }
@@ -315,7 +315,7 @@ public class PasskeyAuthService {
     private AssertionRequest parseAssertionRequest(String json) {
         try {
             return AssertionRequest.fromJson(json);
-        } catch (JsonProcessingException e) {
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new BadRequestException("Invalid authentication request payload");
         }
     }

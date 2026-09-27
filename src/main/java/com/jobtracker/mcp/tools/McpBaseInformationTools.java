@@ -4,10 +4,10 @@ import com.jobtracker.dto.gdrive.BaseInformationContentResponse;
 import com.jobtracker.dto.gdrive.BaseInformationResponse;
 import com.jobtracker.mcp.audit.AuditMcpOperation;
 import com.jobtracker.service.BaseInformationService;
-import org.springaicommunity.mcp.annotation.McpTool;
-import org.springaicommunity.mcp.annotation.McpTool.McpAnnotations;
-import org.springaicommunity.mcp.annotation.McpToolParam;
-import org.springaicommunity.mcp.context.McpSyncRequestContext;
+import org.springframework.ai.mcp.annotation.McpTool;
+import org.springframework.ai.mcp.annotation.McpTool.McpAnnotations;
+import org.springframework.ai.mcp.annotation.McpToolParam;
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
 

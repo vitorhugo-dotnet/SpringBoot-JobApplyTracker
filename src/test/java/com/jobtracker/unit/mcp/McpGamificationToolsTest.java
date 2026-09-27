@@ -13,7 +13,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springaicommunity.mcp.context.McpSyncRequestContext;
+import org.springframework.ai.mcp.annotation.context.McpSyncRequestContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -110,7 +110,7 @@ class McpGamificationToolsTest {
         }).when(gamificationService).applyEventWithProgress(any(), any());
 
         doAnswer(inv -> {
-            Consumer<org.springaicommunity.mcp.context.McpRequestContextTypes.ProgressSpec> specConsumer = inv.getArgument(0);
+            Consumer<org.springframework.ai.mcp.annotation.context.McpRequestContextTypes.ProgressSpec> specConsumer = inv.getArgument(0);
             // record the message by using a recording spec
             capturedMessages.add("step");
             return null;
